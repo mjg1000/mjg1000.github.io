@@ -1,0 +1,57 @@
+@charset "utf-8";
+body{
+    margin: 0px;
+    padding: 0px;
+    background-color: brown;
+    text-decoration-color: black;
+    font-size: 18px;
+    text-align: center;
+}
+img{
+    border: double 10px white;
+ 
+}
+.list
+{
+    color: #333300;
+}
+.center 
+{
+    margin: 0px;
+    padding: 0px;
+    background-color: white;
+    text-decoration-color: black;
+    font-size: 18px;
+    text-align: center;
+
+}
+.top
+{
+    margin: 0px;
+    padding: 0px;
+    background-color: burlywood;
+    text-decoration-color: black;
+    font-size: 18px;
+    text-align: center;
+}
+.bottom 
+{
+    margin: 0px;
+    padding: 0px;
+    background-color: red;
+    text-decoration-color: black;
+    font-size: 18px;
+    text-align: center;
+
+}
+.right-column
+
+{
+
+float: right;
+
+width: 350px;
+
+text-align: left;
+
+}
