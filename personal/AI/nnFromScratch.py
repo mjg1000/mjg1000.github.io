@@ -1,4 +1,5 @@
 
+
 from array import array
 from multiprocessing.dummy import Array
 from turtle import forward
@@ -105,25 +106,23 @@ class dense():
     def func3(self, targets): #backpropogation algo
         
         arr = [] #instantiate array (size = self.weights)
-        
+        # SHOULD BE DONE
         for i in range(len(self.weights)): #for each val error  
-            arr2 = []
+            
+    
+            #arr2.append(np.expand_dims(np.array(self.weightError[:][i]),1).dot(self.func2(targets, self.connection.vals[i], i ))) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+            functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals[i], i )),1)
+            functionOut = np.array(functionOut[0][0])
+            print("fout = ", functionOut)
+            print("weight err",np.expand_dims(np.array(self.weightError[i]),1))
+            #arr.append(functionOut.dot(np.expand_dims(np.array(self.weightError[i]),1).T)[0]) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+            arr.append(np.expand_dims(np.array(self.weightError[i]),1).dot(functionOut)) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+            
+            #arr2[p] = int(np.array(arr[p]).dot([1/len(arr[p])]))
+            print(np.expand_dims(np.array(self.weightError[i]),1))
+            print("arr", arr)
         
-            for p in range(len(self.weights[0])): #compute derivatives with next layer node  
-                #arr2.append(np.expand_dims(np.array(self.weightError[:][i]),1).dot(self.func2(targets, self.connection.vals[i], i ))) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-                functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals[i], i )),1)
-                print("fout = ", functionOut)
-                arr2.append(functionOut.dot(np.expand_dims(np.array(self.weightError[i]),1).T)) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-                #arr2[p] = int(np.array(arr[p]).dot([1/len(arr[p])]))
-                print(np.expand_dims(np.array(self.weightError[i]),1))
-                print("arr", arr2)
-                arr3 = 0 
-                for g in range(len(arr2[p])):
-                    arr3 += arr2[p][g] * (1/(len(arr[p])))
-                arr2[p] = arr3
-        
-
-            arr.append(arr2)
+    
         return(arr)
 
         ## w1 corresponds to l1, need to average deriv for l1 (l1- o1 and l1 - o2)
@@ -187,5 +186,4 @@ o = max(0, l1*w1 + l2*w2 etc...)
 
 
         
-
 
