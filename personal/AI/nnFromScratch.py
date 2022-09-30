@@ -1,7 +1,3 @@
-
-from array import array
-from multiprocessing.dummy import Array
-from turtle import forward
 import numpy as np 
 def relu(x):
     return np.maximum(0,x)
@@ -69,7 +65,7 @@ class dense():
         
         if self.type == "output": #derivitive for output layer 
             arr = [] 
-            print(x)
+            #print(x)
             for i in range(len(targets)):
                 arr.append(2*(targets[i] - x[i]))
             #print("OUT ARR", arr)
@@ -159,7 +155,7 @@ class output(dense):
         return(arr,self.vals)
 
 #NETWORK BEGINS:
-input = dense(3)
+input = dense(2)
 dense1 = dense(4)
 dense2 = dense(6)
 out = output(2)
@@ -169,31 +165,61 @@ input.connect(dense1)
 dense1.connect(dense2)
 dense2.connect(out)
 print("set")
-input.input([1,2,2])
-input.forward()
-dense1.forward()
-dense2.forward()
-print(out.forward([0,0,0]))
-input.backward()
-dense1.backward()
-dense2.backward()
+ins = np.random.rand(1000,2)
+outs = []
+for i in ins:
+    if i[1] > i[0]**2:
+        outs.append([0,1])
+    else:
+        outs.append([1,0])
+mses = [0,0]
+for x in range(10):
+    for i in range(len(ins)):
+
+        #input.input([1,2,2])
+        input.input(ins[i])
+        input.forward()
+        dense1.forward()
+        dense2.forward()
+        input.backward()
+        dense1.backward()
+        dense2.backward()
 
 
-input.update([0,0], 0.0001)
-dense1.update([0,0],0.0001)
-dense2.update([0,0],0.0001)
+        input.update(outs[i], 0.0001)
+        dense1.update(outs[i],0.0001)
+        dense2.update(outs[i],0.0001)
 
-input.input([1,2,2])
-input.forward()
-dense1.forward()
-dense2.forward()
-print("_______________________________________________________")
-print(out.forward([0,0,0]))
-"""
-o = max(0, l1*w1 + l2*w2 etc...)
+        input.input(ins[i])
+        input.forward()
+        dense1.forward()
+        dense2.forward()
+        mses[0] += int(out.forward(outs[i])[0][0])
+        mses[1] += int(out.forward(outs[i])[0][1])
+mses[0] = mses[0]/(len(ins)*10)
+mses[1] = mses[1]/(len(ins)*10)
 
+print(mses)
+ins = np.random.rand(100,2)
+outs = []
+for i in ins:
+    if i[1] > i[0]**2:
+        outs.append([0,1])
+    else:
+        outs.append([1,0])
+mses = [0,0]
+for i in range(len(ins)):
 
-"""
+    #input.input([1,2,2])
+    input.input(ins[i])
+    input.forward()
+    dense1.forward()
+    dense2.forward()
+    mses[0] += int(out.forward(outs[i])[0][0])
+    mses[1] += int(out.forward(outs[i])[0][1])
+mses[0] = mses[0]/(len(ins))
+mses[1] = mses[1]/(len(ins))
+print(mses)
 
 
         
