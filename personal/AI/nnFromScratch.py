@@ -1,5 +1,4 @@
 
-
 from array import array
 from multiprocessing.dummy import Array
 from turtle import forward
@@ -55,8 +54,7 @@ class dense():
         
         for i in range(len(self.vals)): #iterate through the node errors 
             for x in range(len(self.connection.vals)):
-                self.valsError[x][i] = self.weights[x][i]*step(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection 
-    
+                self.valsError[x][i] = self.weights[x][i]*step(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection  valsError[x] corresponds to output[x]
     def func(x,y):
         temp = 0 
         
@@ -74,54 +72,65 @@ class dense():
             print(x)
             for i in range(len(targets)):
                 arr.append(2*(targets[i] - x[i]))
+            #print("OUT ARR", arr)
             return(arr)
         
         else:   #node derivative 
             arr = []            
-            for p in range(len(self.vals)): #for each node 
-                print("____")
-                #print(self.valsError[count])
-                print(")))")
-                #print(np.expand_dims(self.valsError[count],1))
-                print("exp", np.expand_dims(self.valsError,1))
-                print("t", self.valsError.T)
-                print(self.nodes)
-                #arr.append(np.array(self.connection.func2(targets, self.connection.vals, p)).dot(np.expand_dims(self.valsError,1))) #how much does the node effect each of the next layers
-                arr.append(self.valsError.T.dot(np.array(self.connection.func2(targets, self.connection.vals, p)))) #how much does the node effect each of the next layers
-                print(arr[p])
-                #arr[p] = np.expand_dims(np.array(arr[p]),1).dot(np.array([1/len(arr[p])]))
-                print(np.array(arr[p]))
-                
-                arr3 = 0
-                for g in range(len(arr[p])):
-                    arr3 += arr[p][g]* (1/len(arr[p]))
-                    print("arr3", arr3)
-                arr[p] = arr3
-
-                
-                print("should be 1 num")
-                print(arr[p])
-            return(arr)        
+            #print("____")
+            #print(")))")
+            #print(np.expand_dims(self.valsError[count],1))
+            
+            functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0))
+            error = np.array(self.valsError)
+            #error = np.array([[error],[error]])
+            error = error.T
+            #error = error.squeeze(1)
+            #print("e1", self.valsError)
+            #print("nodes", self.nodes)
+            #print("error", error)
+            #print("function", functionOut)
+            #arr.append(np.array(self.connection.func2(targets, self.connection.vals, p)).dot(np.expand_dims(self.valsError,1))) #how much does the node effect each of the next layers
+            arr.append(error.dot(functionOut)) #how much does the node effect each of the next layers
+            #print(arr)
+            #arr[p] = np.expand_dims(np.array(arr[p]),1).dot(np.array([1/len(arr[p])]))
+            #print(np.array(arr))
+            
+            
+            for g in range(len(arr)):
+                arr[g] = arr[g]/len(functionOut)
+            
+            #print("should be 1 num")
+            
+            arr = np.array(arr)
+            #print(arr)
+            return(arr.squeeze(0))        
     
     def func3(self, targets): #backpropogation algo
         
         arr = [] #instantiate array (size = self.weights)
         # SHOULD BE DONE
-        for i in range(len(self.weights)): #for each val error  
-            
-    
-            #arr2.append(np.expand_dims(np.array(self.weightError[:][i]),1).dot(self.func2(targets, self.connection.vals[i], i ))) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-            functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals[i], i )),1)
-            functionOut = np.array(functionOut[0][0])
-            print("fout = ", functionOut)
-            print("weight err",np.expand_dims(np.array(self.weightError[i]),1))
-            #arr.append(functionOut.dot(np.expand_dims(np.array(self.weightError[i]),1).T)[0]) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-            arr.append(np.expand_dims(np.array(self.weightError[i]),1).dot(functionOut)) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-            
-            #arr2[p] = int(np.array(arr[p]).dot([1/len(arr[p])]))
-            print(np.expand_dims(np.array(self.weightError[i]),1))
-            print("arr", arr)
+        functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals, 0 )),1)
+        for i in range(len(self.weights)): #for each val error 
+            error = np.array(self.weightError)
+            arr2 = []
+            for g in range(len(self.weightError[0])):    
         
+                #arr2.append(np.expand_dims(np.array(self.weightError[:][i]),1).dot(self.func2(targets, self.connection.vals[i], i ))) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+                
+                #fOutSlice = np.array(functionOut[i])
+                #print("fout = ", functionOut)
+                #print("weight err",np.expand_dims(np.array(self.weightError[i]),1))
+                #arr.append(functionOut.dot(np.expand_dims(np.array(self.weightError[i]),1).T)[0]) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+                #print("func3 err", error[i][g])
+                #print("f3 ws", self.weightError)
+                #print("func3", functionOut[g])
+                arr2.append(error[i][g]*(functionOut[g][0])) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
+                #print("f3 arr", arr2)
+                #arr2[p] = int(np.array(arr[p]).dot([1/len(arr[p])]))
+                #print(np.expand_dims(np.array(self.weightError[i]),1))
+                #print("arr", arr)
+            arr.append(arr2)
     
         return(arr)
 
@@ -131,11 +140,12 @@ class dense():
     
     def update(self, targets, lr): #start of backpropogation
         arr = self.func3(targets) 
-        
+        #print("upd arr", arr)
+
         for i in range(len(arr)):
         
-            for p in range(len(arr)):
-                self.weights[i][p] -= lr*arr[i][p]    
+            for p in range(len(arr[0])):
+                self.weights[i][p] += lr*arr[i][p]    
 
 class output(dense):
     def __init__(self, nodes):
@@ -169,14 +179,15 @@ dense1.backward()
 dense2.backward()
 
 
-input.update([0,0], 0.01)
-dense1.update([0,0],0.01)
-dense2.update([0,0],0.01)
+input.update([0,0], 0.0001)
+dense1.update([0,0],0.0001)
+dense2.update([0,0],0.0001)
 
 input.input([1,2,2])
 input.forward()
 dense1.forward()
 dense2.forward()
+print("_______________________________________________________")
 print(out.forward([0,0,0]))
 """
 o = max(0, l1*w1 + l2*w2 etc...)
@@ -184,6 +195,8 @@ o = max(0, l1*w1 + l2*w2 etc...)
 
 """
 
+
+        
 
         
 
