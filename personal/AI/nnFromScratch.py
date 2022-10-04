@@ -1,15 +1,20 @@
+import matplotlib.pyplot as plt
+from array import array
+from multiprocessing.dummy import Array
+from turtle import forward
 import numpy as np 
 def relu(x):
     return np.maximum(0,x)
 def step(x):
-    if type(x) == Array:
-        out = x > 0
+    if type(x) == list:
+        out = []
+        for i in x:
+            if i > 0:
+                out.append(1)
+            else:
+                out.append(0)
 
-        ans = x[:]
-        for i in range(len(out)):
-            ans[i] = int(out[i])
-
-        return ans 
+        return out
     else:
         if x > 0:
             return(1)
@@ -33,9 +38,9 @@ class dense():
 
     def connect(self, connection): #link to the next layer 
         self.connection = connection #the next layer 
-        self.weights = np.random.rand(self.connection.nodes,self.nodes) #the weights. w[x][:] corresponds to output[x], w[:][x] corresponds to input[x]
-        self.weightError = np.zeros((self.connection.nodes,self.nodes)) #the error of each of the weights
-        self.valsError = np.zeros((self.connection.nodes,self.nodes)) #the error of each of the nodes with respect to each other node. valsError[a][b] means the error of the ath node versus the bth connection
+        self.weights = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the weights. w[x][:] corresponds to output[x], w[:][x] corresponds to input[x]
+        self.weightError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the weights
+        self.valsError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the nodes with respect to each other node. valsError[a][b] means the error of the ath node versus the bth connection
 
     def forward(self): #compute the next values 
         self.connection.noActVals = self.weights.dot(self.vals) #dot product of weights and values
@@ -51,23 +56,13 @@ class dense():
         for i in range(len(self.vals)): #iterate through the node errors 
             for x in range(len(self.connection.vals)):
                 self.valsError[x][i] = self.weights[x][i]*step(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection  valsError[x] corresponds to output[x]
-    def func(x,y):
-        temp = 0 
-        
-        for i in y:
-         temp += x*i
-        
-        temp = step(temp)
-        temp = temp*x
-        return temp
 
     def func2(self, targets, x, count): #for node errors
         
         if self.type == "output": #derivitive for output layer 
             arr = [] 
-            #print(x)
             for i in range(len(targets)):
-                arr.append(2*(targets[i] - x[i]))
+                arr.append(2*(targets[i] - x[i])) #derivative of (t-x)^2 = 2(t-x) 
             #print("OUT ARR", arr)
             return(arr)
         
@@ -77,20 +72,11 @@ class dense():
             #print(")))")
             #print(np.expand_dims(self.valsError[count],1))
             
-            functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0))
-            error = np.array(self.valsError)
-            #error = np.array([[error],[error]])
-            error = error.T
-            #error = error.squeeze(1)
-            #print("e1", self.valsError)
-            #print("nodes", self.nodes)
-            #print("error", error)
-            #print("function", functionOut)
-            #arr.append(np.array(self.connection.func2(targets, self.connection.vals, p)).dot(np.expand_dims(self.valsError,1))) #how much does the node effect each of the next layers
-            arr.append(error.dot(functionOut)) #how much does the node effect each of the next layers
-            #print(arr)
-            #arr[p] = np.expand_dims(np.array(arr[p]),1).dot(np.array([1/len(arr[p])]))
-            #print(np.array(arr))
+            functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0)) #variable to store the result of function
+            error = np.array(self.valsError) #make into a np array
+            error = error.T #transpose the array so it is formatted correctly 
+           
+            arr.append(error.dot(functionOut)) #how much does the node effect each of the next layers   
             
             
             for g in range(len(arr)):
@@ -111,21 +97,7 @@ class dense():
             error = np.array(self.weightError)
             arr2 = []
             for g in range(len(self.weightError[0])):    
-        
-                #arr2.append(np.expand_dims(np.array(self.weightError[:][i]),1).dot(self.func2(targets, self.connection.vals[i], i ))) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-                
-                #fOutSlice = np.array(functionOut[i])
-                #print("fout = ", functionOut)
-                #print("weight err",np.expand_dims(np.array(self.weightError[i]),1))
-                #arr.append(functionOut.dot(np.expand_dims(np.array(self.weightError[i]),1).T)[0]) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-                #print("func3 err", error[i][g])
-                #print("f3 ws", self.weightError)
-                #print("func3", functionOut[g])
                 arr2.append(error[i][g]*(functionOut[g][0])) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
-                #print("f3 arr", arr2)
-                #arr2[p] = int(np.array(arr[p]).dot([1/len(arr[p])]))
-                #print(np.expand_dims(np.array(self.weightError[i]),1))
-                #print("arr", arr)
             arr.append(arr2)
     
         return(arr)
@@ -135,14 +107,14 @@ class dense():
     
     
     def update(self, targets, lr): #start of backpropogation
-        arr = self.func3(targets) 
+        arr = self.func3(targets) #get errors of weights
         #print("upd arr", arr)
 
         for i in range(len(arr)):
         
             for p in range(len(arr[0])):
-                self.weights[i][p] += lr*arr[i][p]    
-
+               self.weights[i][p] += lr*arr[i][p] #update weights by error*lr 
+              
 class output(dense):
     def __init__(self, nodes):
         super().__init__(nodes)
@@ -156,8 +128,8 @@ class output(dense):
 
 #NETWORK BEGINS:
 input = dense(2)
-dense1 = dense(4)
-dense2 = dense(6)
+dense1 = dense(3)
+dense2 = dense(3)
 out = output(2)
 print("set")
 
@@ -167,13 +139,27 @@ dense2.connect(out)
 print("set")
 ins = np.random.rand(1000,2)
 outs = []
+p = [3,-2,5,5,0,-3,-3]
+print(step(p))
+for i in range(len(ins)):
+    ins[i][0] *= 1
+    ins[i][1] *= 1
+c1 = 0 
+c2 = 0
 for i in ins:
-    if i[1] > i[0]**2:
+
+    if i[1] > (i[0]*2.2-0.5)**2:
         outs.append([0,1])
+        c1 += 1
     else:
         outs.append([1,0])
+        c2 += 1
+print(c1,c2)
 mses = [0,0]
-for x in range(10):
+lr = 0.0001
+epochs = 100
+aes = [0,0] 
+for x in range(epochs):
     for i in range(len(ins)):
 
         #input.input([1,2,2])
@@ -186,28 +172,54 @@ for x in range(10):
         dense2.backward()
 
 
-        input.update(outs[i], 0.0001)
-        dense1.update(outs[i],0.0001)
-        dense2.update(outs[i],0.0001)
+        input.update(outs[i], lr)
+        dense1.update(outs[i], lr)
+        dense2.update(outs[i], lr)
 
         input.input(ins[i])
         input.forward()
         dense1.forward()
         dense2.forward()
-        mses[0] += int(out.forward(outs[i])[0][0])
-        mses[1] += int(out.forward(outs[i])[0][1])
-mses[0] = mses[0]/(len(ins)*10)
-mses[1] = mses[1]/(len(ins)*10)
+        mses[0] += float(out.forward(outs[i])[0][0])
+        mses[1] += float(out.forward(outs[i])[0][1])
+        #aes[0] += float(out.forward(outs[i])[1][0])
+        
+        #aes[1] += float(out.forward(outs[i])[1][1])
+        out1 = float(out.forward(outs[i])[1][1])
+        out2 = float(out.forward(outs[i])[1][0])
+        if out1 > out2 and i <10:
+            #print(1)
+            #print(out1-out2)
+            pass
+        elif i < 10: 
+            pass
+            #print(100000)
+            #print(out1-out2)        
+mses[0] = mses[0]/(len(ins)*epochs)
+mses[1] = mses[1]/(len(ins)*epochs)
 
 print(mses)
-ins = np.random.rand(100,2)
+print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
+
+ins = np.random.rand(300,2)
 outs = []
+
+for i in range(len(ins)):
+    ins[i][0] *= 2
+    ins[i][1] *= 1
 for i in ins:
-    if i[1] > i[0]**2:
+
+    if i[1] > (i[0]*2.2-0.5)**2:
         outs.append([0,1])
+        c1 += 1
     else:
         outs.append([1,0])
+        c2 += 1
+print(c1,c2)
 mses = [0,0]
+ae = [0,0]
+reds = [] 
+blues = [] 
 for i in range(len(ins)):
 
     #input.input([1,2,2])
@@ -215,14 +227,34 @@ for i in range(len(ins)):
     input.forward()
     dense1.forward()
     dense2.forward()
-    mses[0] += int(out.forward(outs[i])[0][0])
-    mses[1] += int(out.forward(outs[i])[0][1])
+    result1 = float(out.forward(outs[i])[0][0])
+    result2 = float(out.forward(outs[i])[0][1])
+    result3 = float(out.forward(outs[i])[1][0])
+    result4 = float(out.forward(outs[i])[1][1])
+    if result3>result4:
+        reds.append(ins[i].tolist())
+    else:
+        blues.append(ins[i].tolist())
+    mses[0] += result1
+    mses[1] += result2
+    """
+    print("input = ", ins[i])
+    print("targets = ", outs[i])
+    print("out1 = ",result3)
+    print("out2 = ",result4)
+    print("ms1 = ", result1)
+    print("ms2 = ", result2 )
+    """
+print("raw mses", mses)
 mses[0] = mses[0]/(len(ins))
 mses[1] = mses[1]/(len(ins))
 print(mses)
-
-
-        
+print(len(reds))
+print(len(blues))
+       
+plt.scatter(reds[:][0],reds[:][1])
+plt.scatter(blues[:][0],blues[:][1])
+plt.show()
 
         
 
