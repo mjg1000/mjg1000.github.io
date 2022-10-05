@@ -3,6 +3,7 @@ from array import array
 from multiprocessing.dummy import Array
 from turtle import forward
 import numpy as np 
+import math
 def relu(x):
     return np.maximum(0,x)
 def step(x):
@@ -20,10 +21,15 @@ def step(x):
             return(1)
         else:
             return 0 
+def sigmoid(x):
+    return ( 1/(1+math.e**(-x)))
+def sigmoidDeriv(x):
+    return (sigmoid(x)*(1-sigmoid(x)))
 
 
-a = np.array([2,2])
-b = np.array([[2,2],[2,2],[2,2]])
+
+a = np.array([3,4])
+b = np.array([[2,2],[3,3],[4,4]])
 c = b.dot(a)
 print(np.zeros((2,3)))
 print(c)
@@ -33,6 +39,11 @@ class dense():
         self.noActVals = np.array(nodes) #the value of each node, without being activated
         self.vals = np.array(nodes) #the value of each node
         self.type = "hidden" #if this layer is an output 
+        self.updateArr1 = []
+        self.updateArr2 = []
+        self.updateArr3 = []
+        self.updateArr4 = []
+    
     def input(self, values):
         self.vals = values #set each value for the input layer 
 
@@ -41,21 +52,48 @@ class dense():
         self.weights = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the weights. w[x][:] corresponds to output[x], w[:][x] corresponds to input[x]
         self.weightError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the weights
         self.valsError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the nodes with respect to each other node. valsError[a][b] means the error of the ath node versus the bth connection
-
+        if self.connection.type != "dense":
+            self.biasWeights = np.random.rand(self.connection.nodes)*2 - 1 
+            self.bias = np.random.random() 
+            self.biasError = np.random.rand(self.connection.nodes)*2-1
+            self.biasWeightsError = np.random.rand(self.connection.nodes)*2-1
+        self.functionOut = np.random.rand(self.nodes)
+    
     def forward(self): #compute the next values 
         self.connection.noActVals = self.weights.dot(self.vals) #dot product of weights and values
-        self.connection.vals = relu(self.connection.noActVals) #activating 
+        if self.connection.type != "output":
+            self.connection.vals = relu(self.connection.noActVals) #activating
+            for i in range(len(self.connection.vals)): #add biases
+                self.connection.vals[i] += self.bias*self.biasWeights[i] 
+        else:
+            self.connection.vals = sigmoid(self.connection.noActVals)
 
     def backward(self ):
 
         for i in range(len(self.vals)):
             for x in range(len(self.connection.vals)): #iterate through each weight 
                 self.weightError[x][i] = self.vals[i] #weight error = (g'(x) * f'(g(x)) g(x) = weight*node so g'(x) = node. 
-                self.weightError[x][i] *= step(self.connection.vals[x]) #f(x) = relu so f'(x) = step, so multiplying by step(g(x))
+                if self.connection.type != "output":
+                    self.weightError[x][i] *= step(self.connection.vals[x]) #f(x) = relu so f'(x) = step, so multiplying by step(g(x))
+                else:
+                    self.weightError[x][i] *= sigmoidDeriv(self.connection.vals[x]) #f(x) = relu so f'(x) = step, so multiplying by step(g(x))
         
         for i in range(len(self.vals)): #iterate through the node errors 
             for x in range(len(self.connection.vals)):
-                self.valsError[x][i] = self.weights[x][i]*step(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection  valsError[x] corresponds to output[x]
+                if self.connection.type != "output":
+                    self.valsError[x][i] = self.weights[x][i]*step(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection  valsError[x] corresponds to output[x]
+                else:
+                    self.valsError[x][i] = self.weights[x][i]*sigmoidDeriv(self.connection.vals[x]) # g(x) = node*weight so g'(x) = weight. step of the connection  valsError[x] corresponds to output[x]
+                
+        if self.connection.type != "output":
+            for i in range(len(self.biasError)):
+                self.biasError[i] = self.biasWeights[i]*step(self.connection.vals[i])
+
+            for i in range(len(self.biasWeightsError)):
+                self.biasWeightsError[i] = self.bias*step(self.connection.vals[i])
+
+
+
 
     def func2(self, targets, x, count): #for node errors
         
@@ -63,19 +101,16 @@ class dense():
             arr = [] 
             for i in range(len(targets)):
                 arr.append(2*(targets[i] - x[i])) #derivative of (t-x)^2 = 2(t-x) 
-            #print("OUT ARR", arr)
+            
             return(arr)
         
         else:   #node derivative 
-            arr = []            
-            #print("____")
-            #print(")))")
-            #print(np.expand_dims(self.valsError[count],1))
-            
+            arr = []          
             functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0)) #variable to store the result of function
             error = np.array(self.valsError) #make into a np array
             error = error.T #transpose the array so it is formatted correctly 
-           
+
+
             arr.append(error.dot(functionOut)) #how much does the node effect each of the next layers   
             
             
@@ -85,36 +120,111 @@ class dense():
             #print("should be 1 num")
             
             arr = np.array(arr)
-            #print(arr)
+            self.functionOut = arr.squeeze(0)
+            #print("sqeeze")
+            #print(arr.squeeze(0))
             return(arr.squeeze(0))        
+    def compedFunc2(self):
+        return self.functionOut
     
     def func3(self, targets): #backpropogation algo
         
         arr = [] #instantiate array (size = self.weights)
         # SHOULD BE DONE
-        functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals, 0 )),1)
+        if self.type == "input":
+            functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals, 0 )),1)
+        else:
+            functionOut = np.expand_dims(self.compedFunc2(),1)
+        
         for i in range(len(self.weights)): #for each val error 
             error = np.array(self.weightError)
             arr2 = []
-            for g in range(len(self.weightError[0])):    
+            for g in range(len(self.weightError[0])):
                 arr2.append(error[i][g]*(functionOut[g][0])) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) 9self.weighterror * f'(vals)
             arr.append(arr2)
-    
         return(arr)
 
         ## w1 corresponds to l1, need to average deriv for l1 (l1- o1 and l1 - o2)
         ## add np.dot() to add up all the derivitives and then divide ? 
-    
-    
-    def update(self, targets, lr): #start of backpropogation
+    def func3Bias(self,targets):
+        arr = [] 
+        if self.type == "input":
+            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
+        else:
+            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+        arr2 = []
+        error = np.array(self.biasWeightsError)
+
+        for i in range(len(self.biasWeightsError)):
+            arr2.append(error[i]*functionOut[i][0])
+        arr.append(arr2)
+        arr3 = 0
+        error = np.array(self.biasError)
+        for i in range(len(self.biasError)):
+            arr3+=(error[i]*functionOut[i][0])
+        arr3 = arr3/len(self.biasError)
+        arr.append([arr3])
+        return arr
+
+
+    def update(self, targets, lr, loop): #start of backpropogation
         arr = self.func3(targets) #get errors of weights
-        #print("upd arr", arr)
+        self.updateArr1.append(arr)
+        if self.connection.type != "output":
+            arr2 = self.func3Bias(targets)
+            arr3 = arr2[0]
+            arr4 = arr2[1]
+            self.updateArr2.append(arr2)
+            self.updateArr3.append(arr3)
+            self.updateArr4.append(arr4)
+
+        
+        if loop % 16 == 0:
+            #print(self.updateArr1)
+            #print(self.updateArr1[0])
+            #print(self.updateArr1[0][0])
+            
+            #print(self.updateArr1[0][0][0])
+            for x in range(len(self.updateArr1)):
+
+                #print("upd arr", arr)
+
+                for i in range(len(self.updateArr1[x])):
+                    for p in range(len(self.updateArr1[x][0])):
+                        self.weights[i][p] += lr*self.updateArr1[x][i][p] #update weights by error*lr 
+                if self.connection.type != "output":
+                    for i in range(len(self.updateArr3[x])):
+                        self.biasWeights[i] += lr*self.updateArr3[x][i]
+                    #print("arr4 ", arr4)
+                    self.bias += lr*self.updateArr4[x][0]
+            self.updateArr1 = [] 
+            self.updateArr2 = [] 
+            self.updateArr3 = [] 
+            self.updateArr4 = []
+        """
+        old:
+        arr = self.func3(targets) #get errors of weights
+        if self.connection.type != "output":
+            arr2 = self.func3Bias(targets)
+            arr3 = arr2[0]
+            arr4 = arr2[1]
+        
+
+
 
         for i in range(len(arr)):
-        
             for p in range(len(arr[0])):
-               self.weights[i][p] += lr*arr[i][p] #update weights by error*lr 
-              
+                self.weights[i][p] += lr*self.arr[i][p] #update weights by error*lr 
+        if self.connection.type != "output":
+            for i in range(len(self.arr3)):
+                self.biasWeights[i] += lr*self.arr3[i]
+            #print("arr4 ", arr4)
+            self.bias += lr*self.arr4[0]
+    
+    
+        
+        """
+
 class output(dense):
     def __init__(self, nodes):
         super().__init__(nodes)
@@ -132,20 +242,23 @@ dense1 = dense(3)
 dense2 = dense(3)
 out = output(2)
 print("set")
+input.type = "input"
 
 input.connect(dense1)
 dense1.connect(dense2)
 dense2.connect(out)
 print("set")
-ins = np.random.rand(1000,2)
+ins = np.random.rand(10000,2)
 outs = []
-p = [3,-2,5,5,0,-3,-3]
-print(step(p))
+#p = np.array([3,-2,5,5,0,-3,-3])#
+#print(sigmoid(p))
+#print(step(p))
 for i in range(len(ins)):
     ins[i][0] *= 1
     ins[i][1] *= 1
 c1 = 0 
 c2 = 0
+"""
 for i in ins:
 
     if i[1] > (i[0]*2.2-0.5)**2:
@@ -154,9 +267,26 @@ for i in ins:
     else:
         outs.append([1,0])
         c2 += 1
+"""
+plot1 = []
+plot2 = []
+for i in ins:
+    if i[1] > i[0]:
+        outs.append([0,1])
+        c1 += 1
+        plot1.append(i)
+    else:
+        outs.append([1,0])
+        c2 += 1
+        plot2.append(i)
+#plt.scatter(plot1[:][0], plot1[:][1])
+#plt.scatter(plot2[:][0], plot2[:][1])
+#plt.show()
+
+
 print(c1,c2)
 mses = [0,0]
-lr = 0.0001
+lr = 0.001
 epochs = 100
 aes = [0,0] 
 for x in range(epochs):
@@ -172,14 +302,14 @@ for x in range(epochs):
         dense2.backward()
 
 
-        input.update(outs[i], lr)
-        dense1.update(outs[i], lr)
-        dense2.update(outs[i], lr)
+        input.update(outs[i], lr, i)
+        dense1.update(outs[i], lr, i)
+        dense2.update(outs[i], lr, i)
 
-        input.input(ins[i])
-        input.forward()
-        dense1.forward()
-        dense2.forward()
+        # input.input(ins[i])
+        # input.forward()
+        # dense1.forward()
+        # dense2.forward()
         mses[0] += float(out.forward(outs[i])[0][0])
         mses[1] += float(out.forward(outs[i])[0][1])
         #aes[0] += float(out.forward(outs[i])[1][0])
@@ -187,6 +317,7 @@ for x in range(epochs):
         #aes[1] += float(out.forward(outs[i])[1][1])
         out1 = float(out.forward(outs[i])[1][1])
         out2 = float(out.forward(outs[i])[1][0])
+        #print(out.forward(outs[i]))
         if out1 > out2 and i <10:
             #print(1)
             #print(out1-out2)
@@ -194,7 +325,8 @@ for x in range(epochs):
         elif i < 10: 
             pass
             #print(100000)
-            #print(out1-out2)        
+            #print(out1-out2)       
+    print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1)))
 mses[0] = mses[0]/(len(ins)*epochs)
 mses[1] = mses[1]/(len(ins)*epochs)
 
@@ -205,8 +337,9 @@ ins = np.random.rand(300,2)
 outs = []
 
 for i in range(len(ins)):
-    ins[i][0] *= 2
+    ins[i][0] *= 1
     ins[i][1] *= 1
+"""
 for i in ins:
 
     if i[1] > (i[0]*2.2-0.5)**2:
@@ -215,7 +348,16 @@ for i in ins:
     else:
         outs.append([1,0])
         c2 += 1
+"""
+for i in ins:
+    if i[1] > i[0]:
+        outs.append([0,1])
+        c1 += 1
+    else:
+        outs.append([1,0])
+        c2 += 1 
 print(c1,c2)
+
 mses = [0,0]
 ae = [0,0]
 reds = [] 
@@ -251,10 +393,14 @@ mses[1] = mses[1]/(len(ins))
 print(mses)
 print(len(reds))
 print(len(blues))
-       
-plt.scatter(reds[:][0],reds[:][1])
-plt.scatter(blues[:][0],blues[:][1])
+print("weights : ", dense1.weights)
+print("weights : ", dense2.weights)
+print("weights : ", input.weights)
+reds = np.array(reds)
+blues = np.array(blues)
+plt.scatter(reds[:,0],reds[:,1])
+plt.scatter(blues[:,0],blues[:,1])
 plt.show()
 
-        
-
+# y(x) = f(g(x)), g(x) = w*n + wb*b, f(x) = relu(x)
+#y'(x) = g'(x)*f'(g(x)) = wb*step(out)
