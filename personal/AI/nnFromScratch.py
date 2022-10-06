@@ -179,7 +179,7 @@ class dense():
             self.updateArr4.append(arr4)
 
         
-        if loop % 16 == 0:
+        if loop % 1000 == 0:
             #print(self.updateArr1)
             #print(self.updateArr1[0])
             #print(self.updateArr1[0][0])
@@ -194,7 +194,7 @@ class dense():
                         self.weights[i][p] += lr*self.updateArr1[x][i][p] #update weights by error*lr 
                 if self.connection.type != "output":
                     for i in range(len(self.updateArr3[x])):
-                        self.biasWeights[i] += lr*self.updateArr3[x][i]
+                        self.biasWeights[i] += lr*self.updateArr3[x][i]*0.1
                     #print("arr4 ", arr4)
                     self.bias += lr*self.updateArr4[x][0]
             self.updateArr1 = [] 
@@ -248,14 +248,14 @@ input.connect(dense1)
 dense1.connect(dense2)
 dense2.connect(out)
 print("set")
-ins = np.random.rand(10000,2)
+ins = np.random.rand(20000,2)
 outs = []
 #p = np.array([3,-2,5,5,0,-3,-3])#
 #print(sigmoid(p))
 #print(step(p))
 for i in range(len(ins)):
-    ins[i][0] *= 1
-    ins[i][1] *= 1
+    ins[i][0] *= 10
+    ins[i][1] *= 10
 c1 = 0 
 c2 = 0
 """
@@ -287,9 +287,11 @@ for i in ins:
 print(c1,c2)
 mses = [0,0]
 lr = 0.001
-epochs = 100
+epochs = 1000
 aes = [0,0] 
 for x in range(epochs):
+    reds = []
+    blues = [] 
     for i in range(len(ins)):
 
         #input.input([1,2,2])
@@ -318,15 +320,29 @@ for x in range(epochs):
         out1 = float(out.forward(outs[i])[1][1])
         out2 = float(out.forward(outs[i])[1][0])
         #print(out.forward(outs[i]))
-        if out1 > out2 and i <10:
-            #print(1)
-            #print(out1-out2)
+        if out1 > out2:
+            reds.append(ins[i])
             pass
-        elif i < 10: 
-            pass
+        else: 
+            blues.append(ins[i])
             #print(100000)
             #print(out1-out2)       
     print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1)))
+    if x % 5 == 0:
+        reds = np.array(reds)
+        blues = np.array(blues)
+        try:
+            plt.scatter(reds[:,0],reds[:,1])
+            plt.scatter(blues[:,0],blues[:,1])
+            plt.show()
+            plt.clf()
+        except:
+            print("fail")
+            if x == 0:
+                raise 
+            pass
+    reds = []
+    blues = []
 mses[0] = mses[0]/(len(ins)*epochs)
 mses[1] = mses[1]/(len(ins)*epochs)
 
