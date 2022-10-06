@@ -179,15 +179,10 @@ class dense():
             self.updateArr4.append(arr4)
 
         
-        if loop % 1000 == 0:
-            #print(self.updateArr1)
-            #print(self.updateArr1[0])
-            #print(self.updateArr1[0][0])
-            
-            #print(self.updateArr1[0][0][0])
+        if loop % 40 == 0:
             for x in range(len(self.updateArr1)):
 
-                #print("upd arr", arr)
+                
 
                 for i in range(len(self.updateArr1[x])):
                     for p in range(len(self.updateArr1[x][0])):
@@ -196,7 +191,7 @@ class dense():
                     for i in range(len(self.updateArr3[x])):
                         self.biasWeights[i] += lr*self.updateArr3[x][i]*0.1
                     #print("arr4 ", arr4)
-                    self.bias += lr*self.updateArr4[x][0]
+                        self.bias += lr*self.updateArr4[x][0]
             self.updateArr1 = [] 
             self.updateArr2 = [] 
             self.updateArr3 = [] 
@@ -238,17 +233,19 @@ class output(dense):
 
 #NETWORK BEGINS:
 input = dense(2)
-dense1 = dense(3)
-dense2 = dense(3)
+dense1 = dense(10)
+dense2 = dense(6)
+dense3 = dense(10)
 out = output(2)
 print("set")
 input.type = "input"
 
 input.connect(dense1)
 dense1.connect(dense2)
-dense2.connect(out)
+dense2.connect(dense3)
+dense3.connect(out)
 print("set")
-ins = np.random.rand(20000,2)
+ins = np.random.rand(10000 ,2)
 outs = []
 #p = np.array([3,-2,5,5,0,-3,-3])#
 #print(sigmoid(p))
@@ -285,13 +282,15 @@ for i in ins:
 
 
 print(c1,c2)
-mses = [0,0]
-lr = 0.001
+mses = [0,0]    
+lr = 0.0003
 epochs = 1000
-aes = [0,0] 
+aes = [0,0]
+lastChange = 0
+lastMses = [1,1]
 for x in range(epochs):
     reds = []
-    blues = [] 
+    blues = []      
     for i in range(len(ins)):
 
         #input.input([1,2,2])
@@ -299,19 +298,22 @@ for x in range(epochs):
         input.forward()
         dense1.forward()
         dense2.forward()
+        dense3.forward()
         input.backward()
         dense1.backward()
         dense2.backward()
+        dense3.backward()
 
 
         input.update(outs[i], lr, i)
         dense1.update(outs[i], lr, i)
         dense2.update(outs[i], lr, i)
-
+        dense3.update(outs[i], lr, i)
         # input.input(ins[i])
         # input.forward()
         # dense1.forward()
         # dense2.forward()
+
         mses[0] += float(out.forward(outs[i])[0][0])
         mses[1] += float(out.forward(outs[i])[0][1])
         #aes[0] += float(out.forward(outs[i])[1][0])
@@ -327,7 +329,18 @@ for x in range(epochs):
             blues.append(ins[i])
             #print(100000)
             #print(out1-out2)       
+    
     print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1)))
+    
+    if lastMses[0] - mses[0]/(len(ins)*(x+1)) < 0 and lastMses[1] -  mses[1]/(len(ins)*(x+1)) <0 :
+        if lastChange > 3:
+            lr = lr/3
+            print("lr = ", lr)
+        lastChange = -1
+
+    lastMses[0] =  mses[0]/(len(ins)*(x+1)) 
+    lastMses[1] =  mses[1]/(len(ins)*(x+1)) 
+    lastChange += 1
     if x % 5 == 0:
         reds = np.array(reds)
         blues = np.array(blues)
@@ -341,6 +354,8 @@ for x in range(epochs):
             if x == 0:
                 raise 
             pass
+    if x == 100:
+        lr = lr/3 
     reds = []
     blues = []
 mses[0] = mses[0]/(len(ins)*epochs)
