@@ -118,10 +118,21 @@ class dense(): #dense class for standard hidden layer
             
             
             arr = np.array(arr)#remove excess dimension 
-            self.functionOut = arr.squeeze(0) #store result for other layers 
+            arr = arr.squeeze(0)
+            for i in range(len(arr)):
+                #print(arr)
+                #print(arr[i])
+                if arr[i] > 2:
+                    print("clip")
+                    
+                    arr[i] = 2
+                elif arr[i] < -2:
+                    arr[i] = -2 
+                    print("clip") 
+            self.functionOut = arr #store result for other layers 
             #print("sqeeze")
             #print(arr.squeeze(0))
-            return(arr.squeeze(0))        
+            return(arr)        
     def compedFunc2(self):
         return self.functionOut
     
@@ -189,7 +200,7 @@ class dense(): #dense class for standard hidden layer
                     for i in range(len(self.updateArr3[x])):
                         self.biasWeights[i] += lr*self.updateArr3[x][i]*0.1
                     #print("arr4 ", arr4)
-                        self.bias += lr*self.updateArr4[x][0]
+                    self.bias += lr*self.updateArr4[x][0]
             self.updateArr1 = []  #get rid of the stored input errors
             self.updateArr2 = [] 
             self.updateArr3 = [] 
@@ -234,7 +245,7 @@ class output(dense): #output node is slightly different
 input = dense(2)
 dense1 = dense(10)
 dense2 = dense(6)
-dense3 = dense(10)
+dense3 = dense(2)
 out = output(2)
 print("set")
 #show input is an input
@@ -269,6 +280,7 @@ for i in ins:
 """
 plot1 = [] #graph testing so i can graph the decision boundary 
 plot2 = []
+
 for i in ins:
     if i[1] > i[0]:
         outs.append([0,1])
@@ -278,14 +290,16 @@ for i in ins:
         outs.append([1,0])
         c2 += 1
         plot2.append(i)
-#plt.scatter(plot1[:][0], plot1[:][1])
-#plt.scatter(plot2[:][0], plot2[:][1])
+plot1 = np.array(plot1)
+plot2 = np.array(plot2)
+#plt.scatter(plot1[:,0], plot1[:,1])
+#plt.scatter(plot2[:,0], plot2[:,1])
 #plt.show()
 
 
 print(c1,c2)
 mses = [0,0]    
-lr = 0.0003
+lr = 0.001
 epochs = 1000
 aes = [0,0]
 lastChange = 0
