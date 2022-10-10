@@ -100,7 +100,7 @@ class dense(): #dense class for standard hidden layer
             arr = [] 
             for i in range(len(targets)):
                 arr.append(2*(targets[i] - x[i])) #derivative of (t-x)^2 = 2(t-x) 
-            
+            self.functionOut = arr
             return(arr)
         
         else:   #node derivative 
@@ -136,20 +136,21 @@ class dense(): #dense class for standard hidden layer
     def compedFunc2(self):
         return self.functionOut
     
-    def func3(self, targets): #backpropogation algo for the weights and biases to the nodes in the same layer 
+    def func3(self, targets): #backpropogation algo for the weights and biases to the nodes in the next layer 
         
         arr = [] #instantiate array (size = self.weights)
         # SHOULD BE DONE
         if self.type == "input":
-            functionOut = np.expand_dims(np.array(self.func2(targets, self.connection.vals, 0 )),1)
+            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
         else: #the input layer should compute the derivatives for all other layers 
-            functionOut = np.expand_dims(self.compedFunc2(),1)
-        
+            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+        #print("____________")
+        #print(functionOut)
         for i in range(len(self.weights)): #for each val error 
             error = np.array(self.weightError)
             arr2 = []
             for g in range(len(self.weightError[0])):
-                arr2.append(error[i][g]*(functionOut[g][0])) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) = self.weighterror * f'(vals)
+                arr2.append(error[i][g]*(functionOut[i][0])) #self.vals[p].dot        g'(x) * f'(g(x)) for each weight, new weight should be g'(x) = self.weighterror * f'(vals)
             arr.append(arr2)
         return(arr)
 
@@ -188,7 +189,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 40 == 0: #loop mod x, x = batch size
+        if loop % 2 == 0: #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -243,8 +244,8 @@ class output(dense): #output node is slightly different
 #NETWORK BEGINS:
 #create layers 
 input = dense(2)
-dense1 = dense(10)
-dense2 = dense(6)
+dense1 = dense(2)
+dense2 = dense(10)
 dense3 = dense(2)
 out = output(2)
 print("set")
@@ -299,7 +300,7 @@ plot2 = np.array(plot2)
 
 print(c1,c2)
 mses = [0,0]    
-lr = 0.001
+lr = 0.0001
 epochs = 1000
 aes = [0,0]
 lastChange = 0
