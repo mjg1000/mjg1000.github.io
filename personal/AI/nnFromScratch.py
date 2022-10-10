@@ -22,7 +22,24 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
-    return ( 1/(1+math.e**(-x)))
+    """
+    if type(x) == np.ndarray:
+        temp = list(x)
+        out = [] 
+        for i in temp:
+            if i > -700:
+                out.append(0.00001)
+            else:
+                out.append(1/(1+math.e**(-x)))
+        return out   
+    else:
+        if x > -700:    
+            return 1/(1+math.e**(-x))
+        else:
+            return 0.000001
+    
+    """
+    return(1/(1+math.e**(-x)))
 def sigmoidDeriv(x): 
     return (sigmoid(x)*(1-sigmoid(x)))
 
@@ -122,13 +139,16 @@ class dense(): #dense class for standard hidden layer
             for i in range(len(arr)):
                 #print(arr)
                 #print(arr[i])
-                if arr[i] > 2:
-                    print("clip")
+                if arr[i] > 0.5:
+                    if np.random.randint(1,10000) == 30:
+                        print("clip up")
                     
-                    arr[i] = 2
-                elif arr[i] < -2:
-                    arr[i] = -2 
-                    print("clip") 
+                    arr[i] = 0.5
+                elif arr[i] < -0.5:
+                    arr[i] = -0.5 
+                    if np.random.randint(1,10000) == 30:
+                        print("clip down")
+                    #print("clip") 
             self.functionOut = arr #store result for other layers 
             #print("sqeeze")
             #print(arr.squeeze(0))
@@ -244,9 +264,9 @@ class output(dense): #output node is slightly different
 #NETWORK BEGINS:
 #create layers 
 input = dense(2)
-dense1 = dense(2)
+dense1 = dense(4)
 dense2 = dense(10)
-dense3 = dense(2)
+dense3 = dense(4)
 out = output(2)
 print("set")
 #show input is an input
@@ -283,7 +303,8 @@ plot1 = [] #graph testing so i can graph the decision boundary
 plot2 = []
 
 for i in ins:
-    if i[1] > i[0]:
+    if i[1] -2 > (0.5*i[0]-2)**2:
+    #if i[1]> (i[0]):
         outs.append([0,1])
         c1 += 1
         plot1.append(i)
@@ -300,7 +321,7 @@ plot2 = np.array(plot2)
 
 print(c1,c2)
 mses = [0,0]    
-lr = 0.0001
+lr = 0.01
 epochs = 1000
 aes = [0,0]
 lastChange = 0
@@ -350,10 +371,12 @@ for x in range(epochs): #loop for epochs
     print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1))) #give data 
     
     if lastMses[0] - mses[0]/(len(ins)*(x+1)) < 0 and lastMses[1] -  mses[1]/(len(ins)*(x+1)) <0 : #sometimes decrease lr if its losing progress 
-        if lastChange > 3:
+        if lastChange > 1:
             lr = lr/3
             print("lr = ", lr)
         lastChange = -1
+    if x == 0:
+        lr = lr/5
 
     lastMses[0] =  mses[0]/(len(ins)*(x+1)) 
     lastMses[1] =  mses[1]/(len(ins)*(x+1)) 
@@ -369,6 +392,7 @@ for x in range(epochs): #loop for epochs
         except:
             print("fail")
             if x == 0:
+                #pass
                 raise 
             pass
     if x == 100:
