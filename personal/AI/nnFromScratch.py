@@ -1,7 +1,4 @@
 import matplotlib.pyplot as plt
-from array import array
-from multiprocessing.dummy import Array
-from turtle import forward
 import numpy as np 
 import math
 def relu(x): #relu activation function 
@@ -22,64 +19,50 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
-    """
-    if type(x) == np.ndarray:
-        temp = list(x)
-        out = [] 
-        for i in temp:
-            if i > -700:
-                out.append(0.00001)
-            else:
-                out.append(1/(1+math.e**(-x)))
-        return out   
-    else:
-        if x > -700:    
-            return 1/(1+math.e**(-x))
-        else:
-            return 0.000001
-    
-    """
     return(1/(1+math.e**(-x)))
 def sigmoidDeriv(x): 
     return (sigmoid(x)*(1-sigmoid(x)))
 
-#testing so i remember how the damn dot product works 
-a = np.array([3,4])
-b = np.array([[2,2],[3,3],[4,4]])
-c = b.dot(a)
-print(np.zeros((2,3)))
-print(c)
+
 class dense(): #dense class for standard hidden layer 
-    def __init__(self,nodes): #set up all default values 
+    def __init__(self,nodes): #set up all default values
+
         self.nodes = nodes #number of nodes in the layer 
         self.noActVals = np.array(nodes) #the value of each node, without being activated
         self.vals = np.array(nodes) #the value of each node
+        
         self.type = "hidden" #if this layer is an output 
-        self.updateArr1 = [] #used for backpropogation so batches and mini-batches work
+
+        #used for backpropogation so batches and mini-batches work
+        self.updateArr1 = [] 
         self.updateArr2 = []
         self.updateArr3 = []
         self.updateArr4 = []
     
-    def input(self, values): #so that the input layer can be fed values 
+    def input(self, values): #feed values into input layer  
         self.vals = values #set each value for the input layer 
 
-    def connect(self, connection): #link to the next layer 
+    def connect(self, connection): #link up nodes and weights to the next layer 
+
         self.connection = connection #the next layer 
+        
         self.weights = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the weights. w[x][:] corresponds to output[x], w[:][x] corresponds to input[x]
         self.weightError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the weights
         self.valsError = np.random.rand(self.connection.nodes,self.nodes)*2-1 #the error of each of the nodes with respect to each other node. valsError[a][b] means the error of the ath node versus the bth connection
-        if self.connection.type != "dense": #add a bias providedd that the next layer is not the output (output layer is just the cost function so a bias messes things up )
+        
+        if self.connection.type != "dense": #add a bias provided that the next layer is not the output (output layer is just the cost function so a bias messes things up )
             self.biasWeights = np.random.rand(self.connection.nodes)*2 - 1 #weights and errors for the bias 
             self.bias = np.random.random() 
-            self.biasError = np.random.rand(self.connection.nodes)*2-1
-            self.biasWeightsError = np.random.rand(self.connection.nodes)*2-1
-        self.functionOut = np.random.rand(self.nodes) #var to store derivatives when it has already been computed 
+            self.biasError = np.random.rand(self.connection.nodes)*2-1 #error of the bias (relative to each next node)
+            self.biasWeightsError = np.random.rand(self.connection.nodes)*2-1#error of the bias weights (relative to corresponding nodes)
+
+        self.functionOut = np.random.rand(self.nodes) #var to store derivatives when it has already been computed to speed up processing time 
     
     def forward(self): #compute the next values  
-        self.connection.noActVals = self.weights.dot(self.vals) #dot product of weights and values without the activation
-        if self.connection.type != "output": #output layer doesnt use a relu activation or a bias 
-            self.connection.vals = relu(self.connection.noActVals) #activating
-            for i in range(len(self.connection.vals)): #add biases
+        self.connection.noActVals = self.weights.dot(self.vals) #dot product of weights and values without the activation - dot product will give the unactivated values for the next layer 
+        if self.connection.type != "output": #output layer doesnt use a relu activation or a bias so needs special exception  
+            self.connection.vals = relu(self.connection.noActVals) #passing the values through the activation function 
+            for i in range(len(self.connection.vals)): #add biases to each node 
                 self.connection.vals[i] += self.bias*self.biasWeights[i] 
         else:
             self.connection.vals = sigmoid(self.connection.noActVals)
@@ -150,8 +133,6 @@ class dense(): #dense class for standard hidden layer
                         print("clip down")
                     #print("clip") 
             self.functionOut = arr #store result for other layers 
-            #print("sqeeze")
-            #print(arr.squeeze(0))
             return(arr)        
     def compedFunc2(self):
         return self.functionOut
@@ -209,7 +190,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 2 == 0: #loop mod x, x = batch size
+        if loop % 1 == 0: #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -226,31 +207,8 @@ class dense(): #dense class for standard hidden layer
             self.updateArr2 = [] 
             self.updateArr3 = [] 
             self.updateArr4 = []
-        """
-        old:
-        arr = self.func3(targets) #get errors of weights
-        if self.connection.type != "output":
-            arr2 = self.func3Bias(targets)
-            arr3 = arr2[0]
-            arr4 = arr2[1]
-        
-
-
-
-        for i in range(len(arr)):
-            for p in range(len(arr[0])):
-                self.weights[i][p] += lr*self.arr[i][p] #update weights by error*lr 
-        if self.connection.type != "output":
-            for i in range(len(self.arr3)):
-                self.biasWeights[i] += lr*self.arr3[i]
-            #print("arr4 ", arr4)
-            self.bias += lr*self.arr4[0]
-    
-    
-        
-        """
-
-class output(dense): #output node is slightly different 
+       
+class output(dense): #output layer is slightly different 
     def __init__(self, nodes):
         super().__init__(nodes)
         self.type = "output"
@@ -264,9 +222,9 @@ class output(dense): #output node is slightly different
 #NETWORK BEGINS:
 #create layers 
 input = dense(2)
-dense1 = dense(4)
-dense2 = dense(10)
-dense3 = dense(4)
+dense1 = dense(8)
+dense2 = dense(8)
+dense3 = dense(8)
 out = output(2)
 print("set")
 #show input is an input
@@ -281,7 +239,7 @@ print("set")
 #randomly create a set of inputs for the network 
 ins = np.random.rand(10000 ,2)
 outs = []
-#p = np.array([3,-2,5,5,0,-3,-3])#
+#p = np.array([3,-2,5,5,0,-3,-3])
 #print(sigmoid(p))
 #print(step(p))
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
