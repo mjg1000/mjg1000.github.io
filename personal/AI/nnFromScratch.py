@@ -221,42 +221,29 @@ class output(dense): #output layer is slightly different
 
 #NETWORK BEGINS:
 #create layers 
-input = dense(2)
-dense1 = dense(8)
-dense2 = dense(8)
-dense3 = dense(8)
-out = output(2)
+network = [] 
+network.append(dense(2))
+network.append(dense(8))
+network.append(dense(8))
+network.append(dense(8))
+network.append(output(2))
+
 print("set")
 #show input is an input
-input.type = "input"
+network[0].type = "input"
 
 #connect all the layers together 
-input.connect(dense1)
-dense1.connect(dense2)
-dense2.connect(dense3)
-dense3.connect(out)
+for i in range(len(network)-1):
+    network[i].connect(network[i+1])
 print("set")
 #randomly create a set of inputs for the network 
 ins = np.random.rand(10000 ,2)
 outs = []
-#p = np.array([3,-2,5,5,0,-3,-3])
-#print(sigmoid(p))
-#print(step(p))
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
     ins[i][0] *= 10
     ins[i][1] *= 10
 c1 = 0 
 c2 = 0
-"""
-for i in ins:
-
-    if i[1] > (i[0]*2.2-0.5)**2:
-        outs.append([0,1])
-        c1 += 1
-    else:
-        outs.append([1,0])
-        c2 += 1
-"""
 plot1 = [] #graph testing so i can graph the decision boundary 
 plot2 = []
 
@@ -289,42 +276,31 @@ for x in range(epochs): #loop for epochs
     blues = []      
     for i in range(len(ins)): # loop through inputs 
 
-        #input.input([1,2,2])
-        input.input(ins[i])  #input input 
-        input.forward() #move data forward 
-        dense1.forward()
-        dense2.forward()
-        dense3.forward()
-        input.backward() #get errors 
-        dense1.backward()
-        dense2.backward()
-        dense3.backward()
+        #TRAINING LOOP
+        network[0].input(ins[i])
+        for g in range(len(network)-1):
+          #input input 
+          network[g].forward() 
+        for g in range(len(network)-1):
+            network[g].backward() #get errors 
+        for g in range(len(network)-2):
+            network[g].update(outs[i], lr, i) #Update weights based on errors 
+        #TRAINING LOOP END 
 
-
-        input.update(outs[i], lr, i) #update weights 
-        dense1.update(outs[i], lr, i)
-        dense2.update(outs[i], lr, i)
-        dense3.update(outs[i], lr, i)
-        # input.input(ins[i])
-        # input.forward()
-        # dense1.forward()
-        # dense2.forward()
-
-        mses[0] += float(out.forward(outs[i])[0][0])
-        mses[1] += float(out.forward(outs[i])[0][1])
-        #aes[0] += float(out.forward(outs[i])[1][0])
+        #Mean squared errors (final layer returns raw values and mses):
+        mses[0] += float(network[-1].forward(outs[i])[0][0])
+        mses[1] += float(network[-1].forward(outs[i])[0][1])
+        #Raw values:
+        out1 = float(network[-1].forward(outs[i])[1][1])
+        out2 = float(network[-1].forward(outs[i])[1][0])
         
-        #aes[1] += float(out.forward(outs[i])[1][1])
-        out1 = float(out.forward(outs[i])[1][1])
-        out2 = float(out.forward(outs[i])[1][0])
-        #print(out.forward(outs[i]))
+        #PLOTTING DECISION BOUNDARY
         if out1 > out2:
             reds.append(ins[i]) #if it is class1, add to red, else add to blues 
             pass
         else: 
             blues.append(ins[i])
-            #print(100000)
-            #print(out1-out2)       
+              
     
     print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1))) #give data 
     
@@ -363,12 +339,15 @@ mses[1] = mses[1]/(len(ins)*epochs)
 print(mses)
 print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
 #Validation stuff
+
+"""
 ins = np.random.rand(300,2)
 outs = []
 
 for i in range(len(ins)):
     ins[i][0] *= 1
     ins[i][1] *= 1
+"""
 """
 for i in ins:
 
@@ -378,6 +357,7 @@ for i in ins:
     else:
         outs.append([1,0])
         c2 += 1
+"""
 """
 for i in ins:
     if i[1] > i[0]:
@@ -410,6 +390,7 @@ for i in range(len(ins)):
     mses[0] += result1
     mses[1] += result2
     """
+"""
     print("input = ", ins[i])
     print("targets = ", outs[i])
     print("out1 = ",result3)
@@ -417,6 +398,7 @@ for i in range(len(ins)):
     print("ms1 = ", result1)
     print("ms2 = ", result2 )
     """
+"""
 print("raw mses", mses)
 mses[0] = mses[0]/(len(ins))
 mses[1] = mses[1]/(len(ins))
@@ -434,3 +416,4 @@ plt.show()
 
 # y(x) = f(g(x)), g(x) = w*n + wb*b, f(x) = relu(x)
 #y'(x) = g'(x)*f'(g(x)) = wb*step(out)
+"""
