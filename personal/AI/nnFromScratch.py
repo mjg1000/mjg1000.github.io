@@ -19,7 +19,7 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
-    return(1/(1+math.exp**(-x)))
+    return(1/(1+math.e**(-x)))
 def sigmoidDeriv(x): 
     sig = sigmoid(x)
     return (sig*(1-sig))
@@ -238,7 +238,7 @@ for i in range(len(network)-1):
     network[i].connect(network[i+1])
 print("set")
 #randomly create a set of inputs for the network 
-ins = np.random.rand(10000 ,2)
+ins = np.random.rand(1000 ,2)
 outs = []
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
     ins[i][0] *= 10
@@ -264,7 +264,7 @@ plot2 = np.array(plot2)
 
   
 lr = 0.01
-epochs = 25
+epochs = 10
 def train(lr, epochs, network, ins, outs):  
     mseGraph = []
     aes = [0,0]
@@ -383,6 +383,7 @@ def train(lr, epochs, network, ins, outs):
     print(mses)
     print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
     return network
+
 for i in range(5):
     try:
         a = train(lr, epochs,network, ins, outs)
