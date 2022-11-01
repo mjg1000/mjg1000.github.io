@@ -191,7 +191,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 32 == 0: #loop mod x, x = batch size
+        if loop % 1 == 0: #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -238,7 +238,7 @@ for i in range(len(network)-1):
     network[i].connect(network[i+1])
 print("set")
 #randomly create a set of inputs for the network 
-ins = np.random.rand(1000 ,2)
+ins = np.random.rand(5000 ,2)
 outs = []
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
     ins[i][0] *= 10
@@ -263,9 +263,9 @@ plot2 = np.array(plot2)
 
 
   
-lr = 0.01
-epochs = 10
-def train(lr, epochs, network, ins, outs):  
+lr = 0.06
+epochs = 40
+def train(lr, epochs, network, ins, outs, loop):  
     mseGraph = []
     aes = [0,0]
     lastChange = 0
@@ -330,19 +330,20 @@ def train(lr, epochs, network, ins, outs):
         if x % 5 == 0: #scatterplot every fith epoch
             reds = np.array(reds)
             blues = np.array(blues)
+            print(len(reds))
+            print(len(blues))
             try:
-                """
-                plt.scatter(reds[:,0],reds[:,1])
-                plt.scatter(blues[:,0],blues[:,1])
-                plt.show()
-                plt.clf()
-                """
+                
+                axs[loop][int(x/5)].scatter(reds[:,0],reds[:,1])
+                axs[loop][int(x/5)].scatter(blues[:,0],blues[:,1])
+                
+                
                 pass
             except:
                 print("fail")
                 if x == 0:
-                    #pass
-                    raise 
+                    pass
+                    #raise 
                 pass
             #heatmap 
             """
@@ -369,11 +370,27 @@ def train(lr, epochs, network, ins, outs):
         reds = []
         blues = []
     
-    
     mseGraph = np.array(mseGraph)
 
-    plt.plot(mseGraph[:,2],mseGraph[:,1])
-    plt.plot(mseGraph[:,2],mseGraph[:,0])
+    #axs[loop].plot(mseGraph[:,2],mseGraph[:,1])
+    #axs[loop].plot(mseGraph[:,2],mseGraph[:,0])
+    #reds = np.array(reds)
+    #blues = np.array(blues)
+    #print(reds)  
+    """  
+    try:
+        
+        axs[loop // 4 ][loop%5].scatter(reds[:,0],reds[:,1])
+        axs[loop // 4][loop%5].scatter(blues[:,0],blues[:,1])
+        
+        pass
+    except:
+        print("fail")
+        if x == 0:
+            #pass
+            raise 
+        pass
+    """
     #plt.show()
     #plt.clf()
 
@@ -384,12 +401,33 @@ def train(lr, epochs, network, ins, outs):
     print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
     return network
 
-for i in range(5):
-    try:
-        a = train(lr, epochs,network, ins, outs)
-    except:
-        pass
+fig, axs = plt.subplots(8,8) 
+for i in range(8):
+    #try:
+        a = train(lr, epochs,network, ins, outs,i )
+                
+        network = [] 
+        network.append(dense(2))
+        network.append(dense(8))
+        network.append(dense(8))
+        network.append(dense(8))
+        network.append(output(2))
+
+        print("set")
+        #show input is an input
+        network[0].type = "input"
+
+        #connect all the layers together 
+        for i in range(len(network)-1):
+            network[i].connect(network[i+1])
+        print("set")
+        
+        #epochs += 1
+        lr += 0.001
+   # except:
+      #  pass
 plt.show()
+
 #Validation stuff
 
 """
