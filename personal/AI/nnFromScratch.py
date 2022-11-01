@@ -19,6 +19,7 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
+    x = np.clip(x,-100,100)
     return(1/(1+math.e**(-x)))
 def sigmoidDeriv(x): 
     sig = sigmoid(x)
@@ -123,13 +124,13 @@ class dense(): #dense class for standard hidden layer
             for i in range(len(arr)):
                 #print(arr)
                 #print(arr[i])
-                if arr[i] > 0.5:
+                if arr[i] > 3:
                     if np.random.randint(1,10000) == 30:
                         print("clip up")
                     
-                    arr[i] = 0.5
-                elif arr[i] < -0.5:
-                    arr[i] = -0.5 
+                    arr[i] = 3
+                elif arr[i] < -3:
+                    arr[i] = -3 
                     if np.random.randint(1,10000) == 30:
                         print("clip down")
                     #print("clip") 
@@ -179,7 +180,7 @@ class dense(): #dense class for standard hidden layer
         return arr
 
 
-    def update(self, targets, lr, loop): #start of backpropogation, actually updates all the values 
+    def update(self, targets, lr, loop, epoch): #start of backpropogation, actually updates all the values 
         arr = self.func3(targets) #get errors of weights
         self.updateArr1.append(arr) #smth like a 3d or 4d array to store alllll the updates for all the different inputs 
         if self.connection.type != "output": #output has no bias 
@@ -191,7 +192,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 1 == 0: #loop mod x, x = batch size
+        if loop % 1000 == 0 or (loop < 100 and epoch == 1): #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -238,7 +239,7 @@ for i in range(len(network)-1):
     network[i].connect(network[i+1])
 print("set")
 #randomly create a set of inputs for the network 
-ins = np.random.rand(5000 ,2)
+ins = np.random.rand(10000 ,2)
 outs = []
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
     ins[i][0] *= 10
@@ -260,11 +261,9 @@ for i in ins:
         plot2.append(i)
 plot1 = np.array(plot1)
 plot2 = np.array(plot2)
-
-
   
-lr = 0.06
-epochs = 40
+lr = 0.01
+epochs = 30
 def train(lr, epochs, network, ins, outs, loop):  
     mseGraph = []
     aes = [0,0]
@@ -288,7 +287,7 @@ def train(lr, epochs, network, ins, outs, loop):
             for g in range(len(network)-1):
                 network[g].backward() #get errors 
             for g in range(len(network)-2):
-                network[g].update(outs[i], lr, i) #Update weights based on errors 
+                network[g].update(outs[i], lr, i, x) #Update weights based on errors 
             #TRAINING LOOP END 
 
             #Mean squared errors (final layer returns raw values and mses):
@@ -334,9 +333,10 @@ def train(lr, epochs, network, ins, outs, loop):
             print(len(blues))
             try:
                 
-                axs[loop][int(x/5)].scatter(reds[:,0],reds[:,1])
-                axs[loop][int(x/5)].scatter(blues[:,0],blues[:,1])
-                
+                plt.scatter(reds[:,0],reds[:,1])
+                plt.scatter(blues[:,0],blues[:,1])
+                plt.show()
+                plt.clf()
                 
                 pass
             except:
@@ -400,33 +400,7 @@ def train(lr, epochs, network, ins, outs, loop):
     print(mses)
     print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
     return network
-
-fig, axs = plt.subplots(8,8) 
-for i in range(8):
-    #try:
-        a = train(lr, epochs,network, ins, outs,i )
-                
-        network = [] 
-        network.append(dense(2))
-        network.append(dense(8))
-        network.append(dense(8))
-        network.append(dense(8))
-        network.append(output(2))
-
-        print("set")
-        #show input is an input
-        network[0].type = "input"
-
-        #connect all the layers together 
-        for i in range(len(network)-1):
-            network[i].connect(network[i+1])
-        print("set")
-        
-        #epochs += 1
-        lr += 0.001
-   # except:
-      #  pass
-plt.show()
+network = train(lr, epochs,network, ins, outs,i )
 
 #Validation stuff
 
