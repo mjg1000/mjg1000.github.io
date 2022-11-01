@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np 
 import math
 def relu(x): #relu activation function 
-    return np.maximum(0,x)
+    return np.maximum(0,x)      
 def step(x): #relu derivative 
     if type(x) == list: #function works even for a list input 
         out = []
@@ -19,9 +19,10 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
-    return(1/(1+math.e**(-x)))
+    return(1/(1+math.exp**(-x)))
 def sigmoidDeriv(x): 
-    return (sigmoid(x)*(1-sigmoid(x)))
+    sig = sigmoid(x)
+    return (sig*(1-sig))
 
 
 class dense(): #dense class for standard hidden layer 
@@ -190,7 +191,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 1 == 0: #loop mod x, x = batch size
+        if loop % 32 == 0: #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -248,7 +249,7 @@ plot1 = [] #graph testing so i can graph the decision boundary
 plot2 = []
 
 for i in ins:
-    if i[1] -2 > (0.5*i[0]-2)**2:
+    if 10 > (i[0]-5)**2+(i[1]-5)**2:
     #if i[1]> (i[0]):
         outs.append([0,1])
         c1 += 1
@@ -259,85 +260,135 @@ for i in ins:
         plot2.append(i)
 plot1 = np.array(plot1)
 plot2 = np.array(plot2)
-#plt.scatter(plot1[:,0], plot1[:,1])
-#plt.scatter(plot2[:,0], plot2[:,1])
-#plt.show()
 
 
-print(c1,c2)
-mses = [0,0]    
+  
 lr = 0.01
-epochs = 1000
-aes = [0,0]
-lastChange = 0
-lastMses = [1,1]
-for x in range(epochs): #loop for epochs 
-    reds = [] #create the graph points 
-    blues = []      
-    for i in range(len(ins)): # loop through inputs 
+epochs = 25
+def train(lr, epochs, network, ins, outs):  
+    mseGraph = []
+    aes = [0,0]
+    lastChange = 0
+    lastMses = [1,1]
+    print(c1,c2)
+    mses = [0,0]  
+    for x in range(epochs): #loop for epochs 
+        mses2 = [0,0]
+        reds = [] #create the graph points 
+        blues = []  
+        redVals = []
+        blueVals = []     
+        for i in range(len(ins)): # loop through inputs 
 
-        #TRAINING LOOP
-        network[0].input(ins[i])
-        for g in range(len(network)-1):
-          #input input 
-          network[g].forward() 
-        for g in range(len(network)-1):
-            network[g].backward() #get errors 
-        for g in range(len(network)-2):
-            network[g].update(outs[i], lr, i) #Update weights based on errors 
-        #TRAINING LOOP END 
+            #TRAINING LOOP
+            network[0].input(ins[i])
+            for g in range(len(network)-1):
+                #input input 
+                network[g].forward() 
+            for g in range(len(network)-1):
+                network[g].backward() #get errors 
+            for g in range(len(network)-2):
+                network[g].update(outs[i], lr, i) #Update weights based on errors 
+            #TRAINING LOOP END 
 
-        #Mean squared errors (final layer returns raw values and mses):
-        mses[0] += float(network[-1].forward(outs[i])[0][0])
-        mses[1] += float(network[-1].forward(outs[i])[0][1])
-        #Raw values:
-        out1 = float(network[-1].forward(outs[i])[1][1])
-        out2 = float(network[-1].forward(outs[i])[1][0])
+            #Mean squared errors (final layer returns raw values and mses):
+            forwardAns = network[-1].forward(outs[i])
+            msNow1 = float(forwardAns[0][0])
+            msNow2 = float(forwardAns[0][1])
+            
+            mses[0] += msNow1
+            mses[1] += msNow2
+            mses2[0] += msNow1
+            mses2[1] += msNow2
+            #Raw values:
+            out1 = float(forwardAns[1][0])
+            out2 = float(forwardAns[1][1])
+            redVals.append([ins[i][0],ins[i][1],out1])
+            blueVals.append([ins[i][0],ins[i][1],out2])
+            #PLOTTING DECISION BOUNDARY
+            if out1 > out2:
+                reds.append(ins[i]) #if it is class1, add to red, else add to blues 
+                pass
+            else: 
+                blues.append(ins[i])
+                
         
-        #PLOTTING DECISION BOUNDARY
-        if out1 > out2:
-            reds.append(ins[i]) #if it is class1, add to red, else add to blues 
-            pass
-        else: 
-            blues.append(ins[i])
-              
-    
-    print("epochs: ",x, "      mse = ", mses[0]/(len(ins)*(x+1)), mses[1]/(len(ins)*(x+1))) #give data 
-    
-    if lastMses[0] - mses[0]/(len(ins)*(x+1)) < 0 and lastMses[1] -  mses[1]/(len(ins)*(x+1)) <0 : #sometimes decrease lr if its losing progress 
-        if lastChange > 1:
-            lr = lr/3
-            print("lr = ", lr)
-        lastChange = -1
-    if x == 0:
-        lr = lr/5
+        print("epochs: ",x, "      mse = ", mses2[0]/(len(ins)), mses2[1]/(len(ins))) #give data 
+        mseGraph.append([mses2[0],mses2[1],x])
+        if lastMses[0] - mses[0]/(len(ins)*(x+1)) < 0 and lastMses[1] -  mses[1]/(len(ins)*(x+1)) <0 : #sometimes decrease lr if its losing progress 
+            if lastChange > 1:
+                lr = lr/3
+                print("lr = ", lr)
+            lastChange = -1
+        if x == 0:
+            lr = lr/2
 
-    lastMses[0] =  mses[0]/(len(ins)*(x+1)) 
-    lastMses[1] =  mses[1]/(len(ins)*(x+1)) 
-    lastChange += 1
-    if x % 5 == 0: #scatterplot every fith epoch
-        reds = np.array(reds)
-        blues = np.array(blues)
-        try:
-            plt.scatter(reds[:,0],reds[:,1])
-            plt.scatter(blues[:,0],blues[:,1])
+        lastMses[0] =  mses[0]/(len(ins)*(x+1)) 
+        lastMses[1] =  mses[1]/(len(ins)*(x+1)) 
+        lastChange += 1
+        print(mseGraph)
+        if x % 5 == 0: #scatterplot every fith epoch
+            reds = np.array(reds)
+            blues = np.array(blues)
+            try:
+                """
+                plt.scatter(reds[:,0],reds[:,1])
+                plt.scatter(blues[:,0],blues[:,1])
+                plt.show()
+                plt.clf()
+                """
+                pass
+            except:
+                print("fail")
+                if x == 0:
+                    #pass
+                    raise 
+                pass
+            #heatmap 
+            """
+            mapRed = np.zeros((101,101))
+            mapBlue = np.zeros((101,101))
+            for i in redVals:
+                mapRed[round(i[0]*10)][round(i[1]*10)] = i[2]
+            for i in blueVals:
+                mapBlue[round(i[0]*10)][round(i[1]*10)] = i[2]
+            fig,ax = plt.subplots()
+            im = ax.imshow(mapRed)              
+            fig.tight_layout()
+            plt.show()      
+            plt.clf()
+            fig,ax = plt.subplots()
+            im = ax.imshow(mapBlue)              
+            fig.tight_layout()
             plt.show()
             plt.clf()
-        except:
-            print("fail")
-            if x == 0:
-                #pass
-                raise 
-            pass
-    if x == 100:
-        lr = lr/3 
-    reds = []
-    blues = []
-mses[0] = mses[0]/(len(ins)*epochs)
-mses[1] = mses[1]/(len(ins)*epochs)
+            """
 
-print(mses)
-print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
+        if x == 100:
+            lr = lr/3 
+        reds = []
+        blues = []
+    
+    
+    mseGraph = np.array(mseGraph)
+
+    plt.plot(mseGraph[:,2],mseGraph[:,1])
+    plt.plot(mseGraph[:,2],mseGraph[:,0])
+    #plt.show()
+    #plt.clf()
+
+    mses[0] = mses[0]/(len(ins)*epochs)
+    mses[1] = mses[1]/(len(ins)*epochs)
+
+    print(mses)
+    print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
+    return network
+for i in range(5):
+    try:
+        a = train(lr, epochs,network, ins, outs)
+    except:
+        pass
+plt.show()
 #Validation stuff
 
 """
