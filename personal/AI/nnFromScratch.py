@@ -19,8 +19,8 @@ def step(x): #relu derivative
         else:
             return 0 
 def sigmoid(x): #final layer activation 
-    x = np.clip(x,-100,100)
-    return(1/(1+math.e**(-x)))
+    #x = np.clip(x,-100,100)
+    return(1/(1+2.72**(-x)))
 def sigmoidDeriv(x): 
     sig = sigmoid(x)
     return (sig*(1-sig))
@@ -192,7 +192,7 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 1000 == 0 or (loop < 100 and epoch == 1): #loop mod x, x = batch size
+        if loop % 32 == 0 or (loop < 10000 and epoch == 1): #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
 
                 
@@ -202,7 +202,7 @@ class dense(): #dense class for standard hidden layer
                         self.weights[i][p] += lr*self.updateArr1[x][i][p] #update weights by error*lr - error is exactly the derivative 
                 if self.connection.type != "output": #bias stuff 
                     for i in range(len(self.updateArr3[x])):
-                        self.biasWeights[i] += lr*self.updateArr3[x][i]*0.1
+                        self.biasWeights[i] += lr*self.updateArr3[x][i]
                     #print("arr4 ", arr4)
                     self.bias += lr*self.updateArr4[x][0]
             self.updateArr1 = []  #get rid of the stored input errors
@@ -226,32 +226,40 @@ class output(dense): #output layer is slightly different
 network = [] 
 network.append(dense(2))
 network.append(dense(8))
+network.append(dense(16))
+network.append(dense(32))
+network.append(dense(16))
 network.append(dense(8))
-network.append(dense(8))
+#network.append(dense(2))
 network.append(output(2))
 
 print("set")
 #show input is an input
 network[0].type = "input"
 
-#connect all the layers together 
+#connect all the layers together    
 for i in range(len(network)-1):
     network[i].connect(network[i+1])
 print("set")
 #randomly create a set of inputs for the network 
-ins = np.random.rand(10000 ,2)
+ins = np.random.rand(5000 ,2)
 outs = []
 for i in range(len(ins)): #expand the size of possible inputs to from 0 - 10 
     ins[i][0] *= 10
     ins[i][1] *= 10
 c1 = 0 
 c2 = 0
-plot1 = [] #graph testing so i can graph the decision boundary 
+plot1 = [] #graph testing so I can graph the decision boundary 
 plot2 = []
 
 for i in ins:
-    if 10 > (i[0]-5)**2+(i[1]-5)**2:
+    #if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
+    #if 3*math.sin(i[0]/1.5) +4 > i[1]:
+    #if math.sinh(i[0])/math.sin(i[0]) + math.cosh(i[0])/math.cos(i[1]) + math.tanh(i[1])/math.tan(i[1]) < 3:
     #if i[1]> (i[0]):
+    #if i[1] > i[0]**2:
+    #if i[1] >i[0]*math.tan(math.sqrt(i[0]**2+i[1]**2)):
+    if 5*math.sin(1/(0.01*(i[0]+3)))+7 > i[1]:
         outs.append([0,1])
         c1 += 1
         plot1.append(i)
@@ -261,15 +269,19 @@ for i in ins:
         plot2.append(i)
 plot1 = np.array(plot1)
 plot2 = np.array(plot2)
-  
+plt.scatter(plot1[:,0],plot1[:,1])
+plt.scatter(plot2[:,0],plot2[:,1])
+plt.show()
+plt.ion()
+plt.show()
 lr = 0.01
-epochs = 30
+epochs = 1000
 def train(lr, epochs, network, ins, outs, loop):  
     mseGraph = []
     aes = [0,0]
     lastChange = 0
     lastMses = [1,1]
-    print(c1,c2)
+    print(c1,c2)    
     mses = [0,0]  
     for x in range(epochs): #loop for epochs 
         mses2 = [0,0]
@@ -283,7 +295,7 @@ def train(lr, epochs, network, ins, outs, loop):
             network[0].input(ins[i])
             for g in range(len(network)-1):
                 #input input 
-                network[g].forward() 
+                network[g].forward()    
             for g in range(len(network)-1):
                 network[g].backward() #get errors 
             for g in range(len(network)-2):
@@ -315,28 +327,34 @@ def train(lr, epochs, network, ins, outs, loop):
         print("epochs: ",x, "      mse = ", mses2[0]/(len(ins)), mses2[1]/(len(ins))) #give data 
         mseGraph.append([mses2[0],mses2[1],x])
         if lastMses[0] - mses[0]/(len(ins)*(x+1)) < 0 and lastMses[1] -  mses[1]/(len(ins)*(x+1)) <0 : #sometimes decrease lr if its losing progress 
-            if lastChange > 1:
+            if lastChange > 1:  
                 lr = lr/3
                 print("lr = ", lr)
             lastChange = -1
         if x == 0:
             lr = lr/2
-
+        if x == 20:
+            lr = lr/2 
+        
         lastMses[0] =  mses[0]/(len(ins)*(x+1)) 
         lastMses[1] =  mses[1]/(len(ins)*(x+1)) 
         lastChange += 1
         print(mseGraph)
-        if x % 5 == 0: #scatterplot every fith epoch
+        if x % 1 == 0: #scatterplot every fith epoch
             reds = np.array(reds)
             blues = np.array(blues)
             print(len(reds))
             print(len(blues))
             try:
-                
+                plt.clf()
                 plt.scatter(reds[:,0],reds[:,1])
                 plt.scatter(blues[:,0],blues[:,1])
-                plt.show()
-                plt.clf()
+                plt.draw()
+                #plt.show()
+                #plt.show(block=False)
+                plt.pause(1)
+                print("OK")
+                #plt.clf()
                 
                 pass
             except:
@@ -401,83 +419,6 @@ def train(lr, epochs, network, ins, outs, loop):
     print("Ae =", aes[0]/len(ins)*epochs, aes[1]/len(ins)*epochs)
     return network
 network = train(lr, epochs,network, ins, outs,i )
-
+plt.show()
 #Validation stuff
 
-"""
-ins = np.random.rand(300,2)
-outs = []
-
-for i in range(len(ins)):
-    ins[i][0] *= 1
-    ins[i][1] *= 1
-"""
-"""
-for i in ins:
-
-    if i[1] > (i[0]*2.2-0.5)**2:
-        outs.append([0,1])
-        c1 += 1
-    else:
-        outs.append([1,0])
-        c2 += 1
-"""
-"""
-for i in ins:
-    if i[1] > i[0]:
-        outs.append([0,1])
-        c1 += 1
-    else:
-        outs.append([1,0])
-        c2 += 1 
-print(c1,c2)
-
-mses = [0,0]
-ae = [0,0]
-reds = [] 
-blues = [] 
-for i in range(len(ins)):
-
-    #input.input([1,2,2])
-    input.input(ins[i])
-    input.forward()
-    dense1.forward()
-    dense2.forward()
-    result1 = float(out.forward(outs[i])[0][0])
-    result2 = float(out.forward(outs[i])[0][1])
-    result3 = float(out.forward(outs[i])[1][0])
-    result4 = float(out.forward(outs[i])[1][1])
-    if result3>result4:
-        reds.append(ins[i].tolist())
-    else:
-        blues.append(ins[i].tolist())
-    mses[0] += result1
-    mses[1] += result2
-    """
-"""
-    print("input = ", ins[i])
-    print("targets = ", outs[i])
-    print("out1 = ",result3)
-    print("out2 = ",result4)
-    print("ms1 = ", result1)
-    print("ms2 = ", result2 )
-    """
-"""
-print("raw mses", mses)
-mses[0] = mses[0]/(len(ins))
-mses[1] = mses[1]/(len(ins))
-print(mses)
-print(len(reds))
-print(len(blues))
-print("weights : ", dense1.weights)
-print("weights : ", dense2.weights)
-print("weights : ", input.weights)
-reds = np.array(reds)
-blues = np.array(blues)
-plt.scatter(reds[:,0],reds[:,1])
-plt.scatter(blues[:,0],blues[:,1])
-plt.show()
-
-# y(x) = f(g(x)), g(x) = w*n + wb*b, f(x) = relu(x)
-#y'(x) = g'(x)*f'(g(x)) = wb*step(out)
-"""
