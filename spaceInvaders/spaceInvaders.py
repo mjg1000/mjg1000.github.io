@@ -10,25 +10,11 @@ B = (0,0,255)
 K = (0,0,0)
 W = (255,255,255)
 
-def angle(x1,x2,y1,y2, vel):
-    angle = math.atan((y2-y1)/(x2-x1))
-    mag = (vel[0]**2+vel[1]**2)**0.5 
-    newvel = [0,0] 
-    newvel[1] = math.sin(angle)*mag
-    newvel[0] = math.cos(angle)*mag
-    return newvel 
-
-def colour(p1,c1,p2,c2):
-    c1 = tuple(c/2*((4-p1)/4) for c in c1)
-    c2 = tuple(c/2*((4-p2)/4) for c in c2) 
-    #print(c1,c2)
-    return tuple(c1[i]+c2[i] for i in range(len(c1)))
-#colour combines 2 colours taking in brightness for c1 (0-4), colour1, and same for colour 2 
 class Enemy(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.name = "enemy"
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\private.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\private.png").convert()
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect()
         self.hp = 1 
@@ -83,10 +69,10 @@ class Enemy(pg.sprite.Sprite):
 class Projectile(pg.sprite.Sprite):
     def __init__(self, vel, damage, pos):
         super().__init__()
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\missile.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\missile.png").convert()
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect() 
-        
+        self.velx = np.random.randint(-1,1)
         self.vel = vel
         self.pos = pos 
         self.rect.x = self.pos[0]
@@ -98,13 +84,14 @@ class Projectile(pg.sprite.Sprite):
         self.rect.y = self.pos[1]
     def tick(self):
         self.pos[1] -= self.vel
+        self.pos[0] += self.velx
         self.loadPos()
     
 class Private(Enemy):
     def __init__(self,pos):
         super().__init__()
         self.type = "private"
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\private.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\private.png").convert()
         self.image.set_colorkey(W)
         self.pos = pos 
         self.loadPos()
@@ -113,24 +100,24 @@ class Commander(Enemy):
     def __init__(self, pos):
         super().__init__()
         self.type = "commander"
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\commander.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\commander.png").convert()
         self.image.set_colorkey(W)
         self.pos = pos 
         self.loadPos()
-        self.hp = 10 
+        self.hp = 20 
 class Creator(Enemy):
     def __init__(self, pos):
         super().__init__()
         self.type = "creator"
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\creator.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\creator.png").convert()
         self.image.set_colorkey(W)
         self.pos = pos 
         self.loadPos()
-        self.hp = 10 
+        self.hp = 30 
 class Missile(Projectile):
     def __init__(self, pos):
         super().__init__(-10, 1, pos)
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\missile.png").convert()
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\missile.png").convert()
         self.image.set_colorkey(W)
         self.sparks = [] 
     
@@ -138,25 +125,28 @@ class Player(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.name = "player"
-        self.maxhp = 5
-        self.hp = 5
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\player.png").convert()
+        self.maxhp = 10
+        self.hp = 10
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\player.png").convert()
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect()
         self.rect.x = 800
         self.rect.y = 700
-        self.vel = 10 
-  
+        self.vel = 7 
+        self.lastshot = 0 
         self.bullets = [] 
         self.gold = 0 
-        self.dmgMod = 0 
+        self.dmgMod = 0
     def moveR(self):
         self.rect.x += self.vel 
     def moveL(self):
         self.rect.x -= self.vel 
     def shoot(self):
-        self.bullets.append(riflePulse([self.rect.x, self.rect.y], self.dmgMod ))
-        spriteList.add(self.bullets[-1])
+        global runT
+        if runT - self.lastshot > 200:
+            self.bullets.append(riflePulse([self.rect.x, self.rect.y], self.dmgMod ))
+            spriteList.add(self.bullets[-1])
+            self.lastshot = runT
     def tick(self):
         for i in self.bullets:
             i.tick()
@@ -164,16 +154,18 @@ class Player(pg.sprite.Sprite):
             for col in hits:
                 try:
                     if col.name == "enemy":
-                        if runT - col.lastHit > 500:
+                        if runT - col.lastHit > 100:
                             col.hp -= i.dmg
                             col.hit()
+                            i.kill()
+                            del i 
                 except:
                     pass
         
 class spark(pg.sprite.Sprite):
     def __init__(self, pos):
         super().__init__()
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\spark.png")
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\spark.png")
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect()
         self.rect.x = pos[0] 
@@ -188,7 +180,7 @@ class spark(pg.sprite.Sprite):
 class riflePulse(Projectile):
     def __init__(self, pos, dmg):
         super().__init__(10, 1+dmg, pos)
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\riflePulse.png")
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\riflePulse.png")
         self.image.set_colorkey(W)
         self.sparks = [] 
     def tick(self):
@@ -209,7 +201,7 @@ class powerUp(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.name = ""
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\powerUp.png")
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\powerUp.png")
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect()
         self.rect.x = 500
@@ -227,7 +219,7 @@ class skip(powerUp):
         self.name = "skip"
         self.desc = "pass the option provided"
         self.cost = 0
-        self.image = pg.image.load("C:\\Users\\mjgar\\Documents\\SpaceInvaders\\powerUp2.png")
+        self.image = pg.image.load("C:\\Users\\user\\Documents\\gameImgs\\powerUp2.png")
         self.image.set_colorkey(W)
         self.rect = self.image.get_rect()
         self.rect.x = 1000
@@ -272,7 +264,7 @@ class speedBoost(powerUp):
     def __init__(self):
         super().__init__()
         self.name = "speed"
-        self.desc = "gives you +10 speed"
+        self.desc = "gives you +3 speed"
         self.cost = 5
         
         
@@ -281,13 +273,13 @@ class speedBoost(powerUp):
         if self.hit == True:
             if player.gold >= 5:
                 player.gold -= 5 
-                player.vel += 10
+                player.vel += 3
         return True
 class goldBoost(powerUp):
     def __init__(self):
         super().__init__()
         self.name = "gold"
-        self.desc = "doubles your gold \n and +1 to all stats"
+        self.desc = "2*gold, +1 all stats"
         self.cost = 12
         
         
@@ -298,7 +290,7 @@ class goldBoost(powerUp):
                 player.gold -= 12
                 player.gold = player.gold * 2
                 player.hp += 1 
-                player.vel += 5 
+                player.vel += 1 
                 player.dmgMod += 1  
             
         return True
@@ -345,7 +337,7 @@ def setup2():
     bullets = [] 
     for x in range(2):
         for i in range(5):
-            enemies.append(Private([100+i*150,x*150+100]))
+            enemies.append(Private([100+i*250,x*150+100]))
             spriteList.add(enemies[-1 ])
     dir = "r"
 def setup4():
@@ -356,9 +348,9 @@ def setup4():
     for x in range(2):
         for i in range(5):
             if i == 2:
-                enemies.append(Commander([100+i*150,x*150+100]))
+                enemies.append(Commander([100+i*250,x*150+100]))
             else:
-                enemies.append(Private([100+i*150,x*150+100]))
+                enemies.append(Private([100+i*250,x*150+100]))
             spriteList.add(enemies[-1 ])
     dir = "r"
 def setup6():
@@ -367,11 +359,11 @@ def setup6():
     enemies = []
     bullets = [] 
     for x in range(2):
-        for i in range(8):
+        for i in range(6):
             if i == 3 or i == 4:
-                enemies.append(Commander([100+i*150,x*150+100]))
+                enemies.append(Commander([100+i*250,x*150+100]))
             else:
-                enemies.append(Private([100+i*150,x*150+100]))
+                enemies.append(Private([100+i*250,x*150+100]))
             spriteList.add(enemies[-1 ])
     dir = "r"
 def setup8():
@@ -380,8 +372,8 @@ def setup8():
     enemies = []
     bullets = [] 
     for x in range(2):
-        for i in range(8):
-            enemies.append(Commander([100+i*150,x*150+100]))
+        for i in range(6):
+            enemies.append(Commander([100+i*250,x*150+100]))
             spriteList.add(enemies[-1 ])
     dir = "r"
 def setup10():
@@ -390,11 +382,11 @@ def setup10():
     enemies = []
     bullets = [] 
     for x in range(2):
-        for i in range(8):
+        for i in range(6):
             if i == 3 or i == 4:
-                enemies.append(Creator([100+i*150,x*150+100]))
+                enemies.append(Creator([100+i*250,x*150+100]))
             else:
-                enemies.append(Commander([100+i*150,x*150+100]))
+                enemies.append(Commander([100+i*250,x*150+100]))
             spriteList.add(enemies[-1 ])
     dir = "r"
 def setup12():
@@ -402,50 +394,77 @@ def setup12():
     lastMove = 1  
     enemies = []
     bullets = [] 
-    for x in range(2):
+    for x in range(1):
         for i in range(8):
 
-            enemies.append(Creator([100+i*150,x*150+100]))
+            enemies.append(Creator([100+i*150,x*150]))
             spriteList.add(enemies[-1 ])
     dir = "r"
+def setup14():
+    pass 
 def moveEnemies():
     global lastMove, level, dir, enemies
     gameLost = False
-    if runT - lastMove > 600:
-        for i in enemies:
-            if i.rect.y > 650:
+    if runT - lastMove > 1200:
+        lastMove = runT
+        moveL = True
+        moveR = True
+        for i in range(len(enemies)):
+            if enemies[i].rect.y > 650:
                 level = -1
                 gameLost = True
-        lastMove = runT
-        if enemies[-1].pos[0] < width-100 and dir == "r":
-            for i in enemies:
-                i.moveR()
-        elif dir == "l" and enemies[0].pos[0] > 100: 
+            if enemies[i].pos[0] < width-200 and dir == "r":
+                
+                moveL = False
+                
+            elif dir == "l" and enemies[i].pos[0] > 100: 
+                moveR = False
+                
+            elif dir == "r":
+                dir = "l"
+                
+                for x in enemies:
+                    if x.moveD() == True:
+                        gameLost = True
+                        level = -1 
+                break
+            elif dir == "l":
+                dir = "r" 
+                for x in enemies:
+                    if x.moveD() == True:
+                        gameLost = True
+                        level = -1 
+                break
+        if moveL == True:
             for i in enemies:
                 i.moveL()
-        elif dir == "r":
-            dir = "l"
+        elif moveR == True:
             for i in enemies:
-                if i.moveD() == True:
-                    gameLost = True
-                    level = -1 
-
-        elif dir == "l":
-            dir = "r" 
-            for i in enemies:
-                if i.moveD() == True:
-                    gameLost = True
-                    level = -1 
+                i.moveR()
         todel = [] 
         for i in range(len(enemies)):
             if enemies[i].type == "creator":
-                if np.random.randint(1,20) == 1:
-                    enemyNum = -np.random.randint(1,6)
-                
-                    enemies.append(Private([enemies[enemyNum].rect.x, enemies[enemyNum].rect.y + 150]))
-                    spriteList.add(enemies[-1])
-                
-            elif np.random.randint(1,5) == 1:
+                if np.random.randint(1,10) == 1:
+                    try:
+                        enemyNum = -np.random.randint(1,6)
+                    
+                        enemies.append(Private([enemies[enemyNum].rect.x, enemies[enemyNum].rect.y + 150]))
+                        spriteList.add(enemies[-1])
+                    except:
+                        try:
+                            enemyNum = -np.random.randint(1,6)
+                        
+                            enemies.append(Private([enemies[enemyNum].rect.x, enemies[enemyNum].rect.y + 150]))
+                            spriteList.add(enemies[-1])
+                        except:
+                            try:
+                                enemyNum = -np.random.randint(1,6)
+                            
+                                enemies.append(Private([enemies[enemyNum].rect.x, enemies[enemyNum].rect.y + 150]))
+                                spriteList.add(enemies[-1])
+                            except:
+                                pass    
+            elif np.random.randint(1,3) == 1:
                 bullets.append(Missile([enemies[i].pos[0],enemies[i].pos[1]]))
                 spriteList.add(bullets[-1])
             if enemies[i].hp <= 0:
@@ -461,24 +480,36 @@ def moveEnemies():
 
             del enemies[i-offset]
             offset += 1 
-        for i in bullets:
-            if i.rect.y > 1500: 
-                i.kill()
-            hits = pg.sprite.spritecollide(i, spriteList, False)
-            for x in hits:
-                try:
-                    if x.name == "player":
-                        player.hp -= i.dmg
-                        if player.hp <= 0:
-                            level = -1 
-                            gameLost = True
-                except:
-                    pass
+    flag = False
+    for i in range(len(bullets)):
+        if bullets[i].rect.y > 1500: 
+            bullets[i].kill()
+            del bullets[i]
+            break
+        hits = pg.sprite.spritecollide(bullets[i], spriteList, False)
+        for x in hits:
+            try:
+                if x.name == "player":
+                    player.hp -= bullets[i].dmg
+                    if player.hp <= 0:
+                        level = -1 
+                        gameLost = True
+                    bullets[i].kill()
+                    del bullets[i] 
+                    print("Killed")
+                    flag = True
+                    break
+                    
+            except:
+                pass
+        if flag == True:
+            break
+        
     return(gameLost, level)
 setup0()
 print(enemies)
 while not done:
-    if level != -1:
+    if level != -1 and level != 14:
         keys = pg.key.get_pressed()
         if keys[pg.K_d]:
             player.moveR()
@@ -533,10 +564,11 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
+        screen.blit(goldText, (width-200, 100))
         screen.blit(goldText, (width-200, 100))
     elif level == 4:
         screen.fill(K)
@@ -551,8 +583,8 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
         screen.blit(goldText, (width-200, 100))
@@ -569,8 +601,8 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
         screen.blit(goldText, (width-200, 100))
@@ -587,8 +619,8 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
         screen.blit(goldText, (width-200, 100))
@@ -605,8 +637,8 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
         screen.blit(goldText, (width-200, 100))
@@ -623,11 +655,19 @@ while not done:
             for i in bullets:
                 i.tick() 
         player.tick() 
-        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/10)*800+50, 850], 5)
-        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/10)*800+50, 850],[850, 850],5)
+        pg.draw.line(screen, G, [50,850], [(player.hp/player.maxhp)*(player.maxhp/3)*300+50, 850], 5)
+        pg.draw.line(screen, R, [((player.hp/player.maxhp))*(player.maxhp/3)*300+50, 850],[300*(player.maxhp/3)+50, 850],5)
         pg.draw.line(screen, B, [0, 700], [1600, 700], 5)
         goldText = goldFont.render(("gold : " + str(player.gold)), False, (227, 200, 27))
         screen.blit(goldText, (width-200, 100))
+    elif level == 14:
+        keys = pg.key.get_pressed()
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                done = True
+        screen.fill(B)
+        lostText = font.render("YOU WIN!",False,W)
+        screen.blit(lostText, (int(width/2), int(height/2)))
     
     else:
         #shop level 
@@ -692,3 +732,7 @@ while not done:
 pg.quit()
 
     
+
+    
+
+
