@@ -4,31 +4,34 @@ import math
 import cmath 
 def relu(x):
     if isinstance(x, (list, np.ndarray)):
-        return [0 if cmath.phase(i) > 2.36 or (cmath.phase(i) < -0.785) else i for i in x]
+        return [0+0j if cmath.phase(i) > 2.36 or (cmath.phase(i) < -0.785) else i for i in x]
     else:
-        return 0 if cmath.phase(x) > 2.36 or (cmath.phase(x) < -0.785) else x
+        return 0+0j if cmath.phase(x) > 2.36 or (cmath.phase(x) < -0.785) else x   
 
 
 def step(x): #relu derivative 
     if type(x) == list: 
         out = [] 
         for i in x: 
-            if cmath.phase(i) > 2.36 or (cmath.phase(i) < -0.785): #0.75pi 
-                out.append(0)
+            if cmath.phase(i) > 2.36 or (cmath.phase(i) < -0.785):
+                out.append(0+0j)
             else:
-                out.append(1)
+                out.append(1+0j)
         return out 
     else: 
         if cmath.phase(x) > 2.36 or (cmath.phase(x) < -0.785):
-            return 0 
+            return 0+0j
         else:
-            return 1
+            return 1+0j
 
 def sigmoid(x): #final layer activation 
     if isinstance(x, (list, np.ndarray)):
-        return [1/(1+cmath.exp(-i)) if abs(i) < 50 else 1/(1+cmath.exp(-(i/(abs(i)/50)))) for i in x]
+        return [1/(1+cmath.exp(-i)) if abs(i) < 10 else 1/(1+cmath.exp(-(i/(abs(i)/10)))) for i in x]
     else:
-        return 1/(1+cmath.exp(-x))
+        if abs(x) < 10:
+            return 1/(1+cmath.exp(-x)) 
+        else:
+            return 1/(1+cmath.exp(-(x/(abs(x)/10))))
 def sigmoidDeriv(x): 
     sig = sigmoid(x)
     return (sig*(1-sig))
@@ -38,8 +41,8 @@ class dense(): #dense class for standard hidden layer
     def __init__(self,nodes): #set up all default values
 
         self.nodes = nodes #number of nodes in the layer 
-        self.noActVals = np.array(nodes) #the value of each node, without being activated
-        self.vals = np.array(nodes) #the value of each node
+        self.noActVals = np.zeros(nodes) #the value of each node, without being activated
+        self.vals = np.zeros(nodes) #the value of each node
         
         self.type = "hidden" #if this layer is an output 
 
@@ -48,9 +51,11 @@ class dense(): #dense class for standard hidden layer
         self.updateArr2 = []
         self.updateArr3 = []
         self.updateArr4 = []
+        self.updateArr5 = [] 
     
     def input(self, values): #feed values into input layer  
-        self.vals = values #set each value for the input layer 
+        self.vals = values #set each value for the input layer
+
 
     def connect(self, connection): #link up nodes and weights to the next layer 
 
@@ -62,7 +67,7 @@ class dense(): #dense class for standard hidden layer
         
         if self.connection.type != "dense": #add a bias provided that the next layer is not the output (output layer is just the cost function so a bias messes things up )
             self.biasWeights = np.random.rand(self.connection.nodes)*2-1 +1.j*np.random.rand(self.connection.nodes)*2-1j #weights and errors for the bias 
-            self.bias = np.random.random() +1.j*np.random.random()
+            self.bias = np.random.random()*2-1 +1.j*np.random.random()*2-1.j
             self.biasError = np.random.rand(self.connection.nodes)*2-1+1.j*np.random.rand(self.connection.nodes)*2-1j #error of the bias (relative to each next node)
             self.biasWeightsError = np.random.rand(self.connection.nodes)*2-1+1.j*np.random.rand(self.connection.nodes)*2-1j#error of the bias weights (relative to corresponding nodes)
 
@@ -77,7 +82,8 @@ class dense(): #dense class for standard hidden layer
         else:
             self.connection.vals = sigmoid(self.connection.noActVals)
 
-    def backward(self ): #compute layer-wise derivatives aka node1 - next layers or weight1 to node1 
+
+    def layerToNextLayerDerivs(self ): #compute layer-wise derivatives aka node1 - next layers or weight1 to node1 
         for i in range(len(self.vals)): # weight errors 
             for x in range(len(self.connection.vals)): #iterate through each weight 
                 self.weightError[x][i] = self.vals[i] #weight error = (g'(x) * f'(g(x)) g(x) = weight*node so g'(x) = node. (chain rule)
@@ -103,24 +109,23 @@ class dense(): #dense class for standard hidden layer
 
 
 
-    def func2(self, targets, x, count): #for node errors (count var is useless ) tbh this function is a giant mess because derivatives are HARD, but it computes the derivative between nodes
+    def nodeToCostDerivs(self, targets, x, count): #for node errors (count var is useless ) tbh this function is a giant mess because derivatives are HARD, but it computes the derivative between nodes
         global mse_angles
         mse_angles = [] 
         if self.type == "output": #derivitive for output layer 
             arr = [] 
+            #print("X:",x)
             for i in range(len(targets)):
-                arr.append(2*(targets[i] - x[i])) #derivative of (t-x)^2 = 2(t-x) 
+                arr.append(2*(targets[i] - x[i])) #derivative of (t-x)^2 = 2(t-x)
                 mse_angles.append(cmath.phase((targets[i] - x[i])**2))
             self.functionOut = arr
             return(arr)
         
         else:   #node derivative 
             arr = []          
-            functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0)) #variable to store the result of function, this is a recursive statement from the inpute ----> cost function (mean squared error)
+            functionOut = np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0)) #variable to store the result of function, this is a recursive statement from the inpute ----> cost function (mean squared error)
             error = np.array(self.valsError) #make into a np array
             error = error.T #transpose the array so it is formatted correctly 
-
-
             arr.append(error.dot(functionOut)) #how much does the node effect each of the next layers   
             
             
@@ -130,32 +135,28 @@ class dense(): #dense class for standard hidden layer
             
             arr = np.array(arr)#remove excess dimension 
             arr = arr.squeeze(0)
-            for i in range(len(arr)):
-                #print(arr)
-                #print(arr[i])
-                if arr[i] > 3:
-                    if np.random.randint(1,10000) == 30:
-                        print("clip up")
+            # for i in range(len(arr)):
+
+            #     #print(arr)
+            #     #print(arr[i])
+            #     if abs(arr[i]) > 3:
+            #         if np.random.randint(1,10000) == 30:
+            #             print("clipped")
                     
-                    arr[i] = 3
-                elif arr[i] < -3:
-                    arr[i] = -3 
-                    if np.random.randint(1,10000) == 30:
-                        print("clip down")
-                    #print("clip") 
+            #         arr[i] = arr[i]/(abs(arr[i])/3)
             self.functionOut = arr #store result for other layers 
             return(arr)        
-    def compedFunc2(self):
+    def compednodeToCostDerivs(self):
         return self.functionOut
     
-    def func3(self, targets): #backpropogation algo for the weights and biases to the nodes in the next layer 
+    def weightsToCostDerivs(self, targets): #backpropogation algo for the weights and biases to the nodes in the next layer 
         
         arr = [] #instantiate array (size = self.weights)
         
         if self.type == "input":
-            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
+            functionOut = np.expand_dims(np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0 )),1)
         else: #the input layer should compute the derivatives for all other layers, so no need to compute them again 
-            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+            functionOut = np.expand_dims(self.connection.compednodeToCostDerivs(),1)
         
         for i in range(len(self.weights)): #for each val error 
             error = np.array(self.weightError)
@@ -167,12 +168,12 @@ class dense(): #dense class for standard hidden layer
 
         ## w1 corresponds to l1, need to average deriv for l1 (l1- o1 and l1 - o2)
         ## add np.dot() to add up all the derivitives and then divide ? 
-    def func3Bias(self,targets): #fderivatives for the bias, essentially the exact same as func3 above 
+    def biasToCostDerivs(self,targets): #fderivatives for the bias, essentially the exact same as weightsToCostDerivs above 
         arr = [] 
         if self.type == "input":
-            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
+            functionOut = np.expand_dims(np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0 )),1)
         else:
-            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+            functionOut = np.expand_dims(self.connection.compednodeToCostDerivs(),1)
         arr2 = []
         error = np.array(self.biasWeightsError)
 
@@ -189,12 +190,17 @@ class dense(): #dense class for standard hidden layer
 
 
     def update(self, targets, lr, loop, epoch): #start of backpropogation, actually updates all the values 
-        arr = self.func3(targets) #get errors of weights
+        arr = self.weightsToCostDerivs(targets) #get errors of weights
         self.updateArr1.append(arr) #smth like a 3d or 4d array to store alllll the updates for all the different inputs 
         global mse_angles
         mse_angle = sum(mse_angles)/len(mse_angles) #average the angle of each of the costs for the ouputs 
+        # print("Mse angle = ", mse_angles)
+        # print("mse_angle = ", mse_angle)  
+        mse_angles = [] 
+        self.updateArr5.append(mse_angle)
+        # print(self.updateArr5)
         if self.connection.type != "output": #output has no bias 
-            arr2 = self.func3Bias(targets)
+            arr2 = self.biasToCostDerivs(targets)
             arr3 = arr2[0]
             arr4 = arr2[1]
             self.updateArr2.append(arr2)
@@ -202,33 +208,34 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
 
         
-        if loop % 32 == 0 or (loop < 10000 and epoch == 1): #loop mod x, x = batch size
+        if loop % 1 == 0 or (loop < 100 and epoch == 0): #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
                 for i in range(len(self.updateArr1[x])): #for each weight 
                     for p in range(len(self.updateArr1[x][0])):
-                        angle = (mse_angle-math.pi) - cmath.phase(self.updateArr1[x][i][p]) #optimal angle to change the x by; (mse_angle-math.pi) = 180 degree turn, cmath.phase() = phase of the derivative meaning that angle + cmath.phase() = 180 degree turn 
+                        angle = (self.updateArr5[x]- math.pi) - cmath.phase(self.updateArr1[x][i][p]) #optimal angle to change the x by; (mse_angle-math.pi) = 180 degree turn, cmath.phase() = phase of the derivative meaning that angle + cmath.phase() = 180 degree turn 
+
                         mag = abs(self.updateArr1[x][i][p]) #magnitude of the derivative, this is what the derviative in a real valued nn usually is.
 
                         toadd = cmath.rect(mag,angle)*lr
-                        self.weights[i][p] += toadd  #update weights by error*lr - error is the optimal change as a complex number 
+                        self.weights[i][p] -= toadd  #update weights by error*lr - error is the optimal change as a complex number 
                         
                 if self.connection.type != "output": #bias stuff 
                     for i in range(len(self.updateArr3[x])):
-                        angle = (mse_angle-math.pi) - cmath.phase(self.updateArr3[x][i])
+                        angle = (self.updateArr5[x]-math.pi) - cmath.phase(self.updateArr3[x][i])
                         mag = abs(self.updateArr3[x][i])
 
                         toadd = cmath.rect(mag,angle)*lr
-                        self.biasWeights[i] += toadd
+                        self.biasWeights[i] -= toadd
                     #print("arr4 ", arr4)
-                    angle = (mse_angle-math.pi) - cmath.phase(self.updateArr4[x][0])
-                    mag = abs(self.updateArr3[x][i])
-
+                    angle = (self.updateArr5[x]-math.pi) - cmath.phase(self.updateArr4[x][0])
+                    mag = abs(self.updateArr4[x][0])
                     toadd = cmath.rect(mag,angle)*lr
-                    self.bias += toadd
+                    self.bias -= toadd
             self.updateArr1 = []  #get rid of the stored input errors
             self.updateArr2 = [] 
             self.updateArr3 = [] 
             self.updateArr4 = []
+            self.updateArr5 = [] 
 
 global mse_angles       
 class output(dense): #output layer is slightly different 
@@ -294,7 +301,7 @@ plt.scatter(plot2[:,0],plot2[:,1])
 plt.show()
 plt.ion()
 plt.show()
-lr = 0.01
+lr = 0.001
 epochs = 1000
 def train(lr, epochs, network, ins, outs, loop):  
     mseGraph = []
@@ -312,12 +319,13 @@ def train(lr, epochs, network, ins, outs, loop):
         for i in range(len(ins)): # loop through inputs 
 
             #TRAINING LOOP
+
             network[0].input([ins[i][0] + ins[i][1]*1.j])
             for g in range(len(network)-1):
                 #input input 
                 network[g].forward()    
             for g in range(len(network)-1):
-                network[g].backward() #get errors 
+                network[g].layerToNextLayerDerivs() #get errors 
             for g in range(len(network)-2):
                 network[g].update([outs[i][0]+outs[i][1]*1.j], lr, i, x) #Update weights based on errors 
             #TRAINING LOOP END 
@@ -363,8 +371,6 @@ def train(lr, epochs, network, ins, outs, loop):
         if x % 1 == 0: #scatterplot every fith epoch
             reds = np.array(reds)
             blues = np.array(blues)
-            print(len(reds))
-            print(len(blues))
             try:
                 plt.clf()
                 plt.scatter(reds[:,0],reds[:,1])
@@ -384,24 +390,24 @@ def train(lr, epochs, network, ins, outs, loop):
                     #raise 
                 pass
             #heatmap 
-            """
-            mapRed = np.zeros((101,101))
-            mapBlue = np.zeros((101,101))
-            for i in redVals:
-                mapRed[round(i[0]*10)][round(i[1]*10)] = i[2]
-            for i in blueVals:
-                mapBlue[round(i[0]*10)][round(i[1]*10)] = i[2]
-            fig,ax = plt.subplots()
-            im = ax.imshow(mapRed)              
-            fig.tight_layout()
-            plt.show()      
-            plt.clf()
-            fig,ax = plt.subplots()
-            im = ax.imshow(mapBlue)              
-            fig.tight_layout()
-            plt.show()
-            plt.clf()
-            """
+            
+            # mapRed = np.zeros((101,101))
+            # mapBlue = np.zeros((101,101))
+            # for i in redVals:
+            #     mapRed[round(i[0]*10)][round(i[1]*10)] = i[2]
+            # for i in blueVals:
+            #     mapBlue[round(i[0]*10)][round(i[1]*10)] = i[2]
+            # fig,ax = plt.subplots()
+            # im = ax.imshow(mapRed)              
+            # fig.tight_layout()
+            # plt.show()      
+            # plt.clf()
+            # fig,ax = plt.subplots()
+            # im = ax.imshow(mapBlue)              
+            # fig.tight_layout()
+            # plt.show()
+            # plt.clf()
+            
 
         if x == 100:
             lr = lr/3 

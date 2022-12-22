@@ -69,7 +69,7 @@ class dense(): #dense class for standard hidden layer
         else:
             self.connection.vals = sigmoid(self.connection.noActVals)
 
-    def backward(self ): #compute layer-wise derivatives aka node1 - next layers or weight1 to node1 
+    def layerToNextLayerDerivs(self ): #compute layer-wise derivatives aka node1 - next layers or weight1 to node1 
 
         for i in range(len(self.vals)): # weight errors 
             for x in range(len(self.connection.vals)): #iterate through each weight 
@@ -92,11 +92,16 @@ class dense(): #dense class for standard hidden layer
 
             for i in range(len(self.biasWeightsError)):
                 self.biasWeightsError[i] = self.bias*step(self.connection.vals[i])
+    
+    """
+    The nodeToCostDerivs function in this code is used to compute the derivative of a node with respect to the cost function, using the layerToNextLayerDerivss function. This is done by first checking if the current layer is the output layer, in which case the derivative is computed using the derivative of the cost function (mean squared error). If the layer is not the output layer, the nodeToCostDerivs function calls itself recursively on the next layer, and uses the result to compute the derivative of the current layer with respect to the cost function. The resulting derivative is stored in the functionOut variable and returned.
+
+    The weightsToCostDerivs function is used to compute the derivatives of the weights with respect to the cost function, using the nodeToCostDerivs function. It does this by looping through each weight in the current layer, and using the derivative of the cost function (computed using the nodeToCostDerivs function) to compute the derivative of the weight with respect to the cost function. The resulting derivatives are stored in an array and returned.
+    """
 
 
 
-
-    def func2(self, targets, x, count): #for node errors (count var is useless ) tbh this function is a giant mess because derivatives are HARD, but it computes the derivative between nodes
+    def nodeToCostDerivs(self, targets, x, count): #for node errors (count var is useless ) tbh this function is a giant mess because derivatives are HARD, but it computes the derivative between nodes
         
         if self.type == "output": #derivitive for output layer 
             arr = [] 
@@ -107,7 +112,7 @@ class dense(): #dense class for standard hidden layer
         
         else:   #node derivative 
             arr = []          
-            functionOut = np.array(self.connection.func2(targets, self.connection.vals, 0)) #variable to store the result of function, this is a recursive statement from the inpute ----> cost function (mean squared error)
+            functionOut = np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0)) #variable to store the result of function, this is a recursive statement from the inpute ----> cost function (mean squared error)
             error = np.array(self.valsError) #make into a np array
             error = error.T #transpose the array so it is formatted correctly 
 
@@ -136,17 +141,17 @@ class dense(): #dense class for standard hidden layer
                     #print("clip") 
             self.functionOut = arr #store result for other layers 
             return(arr)        
-    def compedFunc2(self):
+    def compednodeToCostDerivs(self):
         return self.functionOut
     
-    def func3(self, targets): #backpropogation algo for the weights and biases to the nodes in the next layer 
+    def weightsToCostDerivs(self, targets): #backpropogation algo for the weights and biases to the nodes in the next layer 
         
         arr = [] #instantiate array (size = self.weights)
         # SHOULD BE DONE
         if self.type == "input":
-            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
+            functionOut = np.expand_dims(np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0 )),1)
         else: #the input layer should compute the derivatives for all other layers 
-            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+            functionOut = np.expand_dims(self.connection.compednodeToCostDerivs(),1)
         #print("____________")
         #print(functionOut)
         for i in range(len(self.weights)): #for each val error 
@@ -159,12 +164,12 @@ class dense(): #dense class for standard hidden layer
 
         ## w1 corresponds to l1, need to average deriv for l1 (l1- o1 and l1 - o2)
         ## add np.dot() to add up all the derivitives and then divide ? 
-    def func3Bias(self,targets): #fderivatives for the bias, essentially the exact same as func3 above 
+    def biasToCostDerivs(self,targets): #fderivatives for the bias, essentially the exact same as weightsToCostDerivs above 
         arr = [] 
         if self.type == "input":
-            functionOut = np.expand_dims(np.array(self.connection.func2(targets, self.connection.vals, 0 )),1)
+            functionOut = np.expand_dims(np.array(self.connection.nodeToCostDerivs(targets, self.connection.vals, 0 )),1)
         else:
-            functionOut = np.expand_dims(self.connection.compedFunc2(),1)
+            functionOut = np.expand_dims(self.connection.compednodeToCostDerivs(),1)
         arr2 = []
         error = np.array(self.biasWeightsError)
 
@@ -181,10 +186,10 @@ class dense(): #dense class for standard hidden layer
 
 
     def update(self, targets, lr, loop, epoch): #start of backpropogation, actually updates all the values 
-        arr = self.func3(targets) #get errors of weights
+        arr = self.weightsToCostDerivs(targets) #get errors of weights
         self.updateArr1.append(arr) #smth like a 3d or 4d array to store alllll the updates for all the different inputs 
         if self.connection.type != "output": #output has no bias 
-            arr2 = self.func3Bias(targets)
+            arr2 = self.biasToCostDerivs(targets)
             arr3 = arr2[0]
             arr4 = arr2[1]
             self.updateArr2.append(arr2)
@@ -226,9 +231,10 @@ class output(dense): #output layer is slightly different
 network = [] 
 network.append(dense(2))
 network.append(dense(8))
+network.append(dense(8))
 network.append(dense(16))
-network.append(dense(32))
 network.append(dense(16))
+network.append(dense(8))
 network.append(dense(8))
 #network.append(dense(2))
 network.append(output(2))
@@ -253,13 +259,13 @@ plot1 = [] #graph testing so I can graph the decision boundary
 plot2 = []
 
 for i in ins:
-    #if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
+    if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
     #if 3*math.sin(i[0]/1.5) +4 > i[1]:
     #if math.sinh(i[0])/math.sin(i[0]) + math.cosh(i[0])/math.cos(i[1]) + math.tanh(i[1])/math.tan(i[1]) < 3:
     #if i[1]> (i[0]):
     #if i[1] > i[0]**2:
     #if i[1] >i[0]*math.tan(math.sqrt(i[0]**2+i[1]**2)):
-    if 5*math.sin(1/(0.01*(i[0]+3)))+7 > i[1]:
+    #if 5*math.sin(1/(0.01*(i[0]+3)))+7 > i[1]:
         outs.append([0,1])
         c1 += 1
         plot1.append(i)
@@ -297,7 +303,7 @@ def train(lr, epochs, network, ins, outs, loop):
                 #input input 
                 network[g].forward()    
             for g in range(len(network)-1):
-                network[g].backward() #get errors 
+                network[g].layerToNextLayerDerivs() #get errors 
             for g in range(len(network)-2):
                 network[g].update(outs[i], lr, i, x) #Update weights based on errors 
             #TRAINING LOOP END 
