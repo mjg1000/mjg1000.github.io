@@ -126,16 +126,17 @@ class dense(): #dense class for standard hidden layer
             
             arr = np.array(arr)#remove excess dimension 
             arr = arr.squeeze(0)
+            clip_bound = 3 
             for i in range(len(arr)):
                 #print(arr)
                 #print(arr[i])
-                if arr[i] > 3:
+                if arr[i] > clip_bound:
                     if np.random.randint(1,10000) == 30:
                         print("clip up")
                     
-                    arr[i] = 3
-                elif arr[i] < -3:
-                    arr[i] = -3 
+                    arr[i] = clip_bound
+                elif arr[i] < -clip_bound:
+                    arr[i] = -clip_bound 
                     if np.random.randint(1,10000) == 30:
                         print("clip down")
                     #print("clip") 
@@ -231,12 +232,9 @@ class output(dense): #output layer is slightly different
 network = [] 
 network.append(dense(2))
 network.append(dense(8))
-network.append(dense(8))
-network.append(dense(16))
 network.append(dense(16))
 network.append(dense(8))
-network.append(dense(8))
-#network.append(dense(2))
+network.append(dense(4))
 network.append(output(2))
 
 print("set")
@@ -259,11 +257,11 @@ plot1 = [] #graph testing so I can graph the decision boundary
 plot2 = []
 
 for i in ins:
-    if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
+    #if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
     #if 3*math.sin(i[0]/1.5) +4 > i[1]:
     #if math.sinh(i[0])/math.sin(i[0]) + math.cosh(i[0])/math.cos(i[1]) + math.tanh(i[1])/math.tan(i[1]) < 3:
     #if i[1]> (i[0]):
-    #if i[1] > i[0]**2:
+    if i[1] > i[0]**2:
     #if i[1] >i[0]*math.tan(math.sqrt(i[0]**2+i[1]**2)):
     #if 5*math.sin(1/(0.01*(i[0]+3)))+7 > i[1]:
         outs.append([0,1])
@@ -304,7 +302,7 @@ def train(lr, epochs, network, ins, outs, loop):
                 network[g].forward()    
             for g in range(len(network)-1):
                 network[g].layerToNextLayerDerivs() #get errors 
-            for g in range(len(network)-2):
+            for g in range(len(network)-1):
                 network[g].update(outs[i], lr, i, x) #Update weights based on errors 
             #TRAINING LOOP END 
 
