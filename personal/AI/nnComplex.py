@@ -25,20 +25,24 @@ def step(x): #relu derivative
             return 1+0j
 
 def sigmoid(x): #final layer activation 
-    clip_bound = 2
+    clip_bound = 2.3 #clipping for math overflow error 
     if isinstance(x, (list, np.ndarray)):
-        ans = [1/(1+cmath.exp(-i)) if abs(i) < clip_bound else 1/(1+cmath.exp(-(i/(abs(i)/clip_bound)))) for i in x]
-        
+        ans = [1/(1+cmath.exp(-i)) if abs(i) < clip_bound else 1/(1+cmath.exp(-(i/(abs(i)/clip_bound)))) for i in x] 
+        #print(abs(max(ans)))
         return ans 
     else:
         if abs(x) < clip_bound:
             ans = 1/(1+cmath.exp(-x)) 
         else:
             ans = 1/(1+cmath.exp(-(x/(abs(x)/clip_bound))))
-       
         return ans 
 def sigmoidDeriv(x): 
+    clip_bound = 2.25 
     sig = sigmoid(x)
+    if isinstance(sig, (list)):
+        sig = [i/(abs(i)/clip_bound) if abs(i) > clip_bound else i for i in sig]
+    else:
+        sig = 1/(abs(sig)/clip_bound) if abs(sig) > clip_bound else sig
     return (sig*(1-sig))
 
 
@@ -142,7 +146,6 @@ class dense(): #dense class for standard hidden layer
             arr = arr.squeeze(0)
             clip_bound = 10
             for i in range(len(arr)):
-
                 #print(arr)
                 #print(arr[i])
                 if abs(arr[i]) > clip_bound:
@@ -214,13 +217,15 @@ class dense(): #dense class for standard hidden layer
             self.updateArr4.append(arr4)
         # print(self.nodes)
         # print(mse_angle)
+        clip_bound = 5
         if loop % 32 == 0 or (loop < 100 and epoch == 0): #loop mod x, x = batch size
             for x in range(len(self.updateArr1)): #for each batch 
                 for i in range(len(self.updateArr1[x])): #for each weight 
                     for p in range(len(self.updateArr1[x][0])):
                         angle = (self.updateArr5[x]- math.pi) - cmath.phase(self.updateArr1[x][i][p]) #optimal angle to change the x by; (mse_angle-math.pi) = 180 degree turn, cmath.phase() = phase of the derivative meaning that angle + cmath.phase() = 180 degree turn 
                         mag = abs(self.updateArr1[x][i][p]) #magnitude of the derivative, this is what the derviative in a real valued nn usually is.
-                    
+                        if abs(mag) > clip_bound:
+                            mag = clip_bound * (mag/abs(mag))
                         toadd = cmath.rect(mag,angle)*lr
                     
                         self.weights[i][p] -= toadd  #update weights by error*lr - error is the optimal change as a complex number 
@@ -229,12 +234,16 @@ class dense(): #dense class for standard hidden layer
                     for i in range(len(self.updateArr3[x])):
                         angle = (self.updateArr5[x]-math.pi) - cmath.phase(self.updateArr3[x][i])
                         mag = abs(self.updateArr3[x][i])
+                        if abs(mag) > clip_bound:
+                            mag = clip_bound * (mag/abs(mag))
                         toadd = cmath.rect(mag,angle)*lr
                     
                         self.biasWeights[i] -= toadd
                     #print("arr4 ", arr4)
                     angle = (self.updateArr5[x]-math.pi) - cmath.phase(self.updateArr4[x][0])
                     mag = abs(self.updateArr4[x][0])
+                    if abs(mag) > clip_bound:
+                        mag = clip_bound * (mag/abs(mag))
                     toadd = cmath.rect(mag,angle)*lr
                     
                     self.bias -= toadd
@@ -263,7 +272,7 @@ class output(dense): #output layer is slightly different
 network = [] 
 network.append(dense(1))
 network.append(dense(8))
-network.append(dense(16))
+network.append(dense(8))
 network.append(dense(8))
 network.append(dense(4))
 network.append(output(1))
@@ -289,10 +298,10 @@ plot2 = []
 
 for i in ins:
     #if 10 > (i[0]-5)**2+2*(i[1]-5)**2:
-    #if 3*math.sin(i[0]/1.5) +4 > i[1]:
+    if 3*math.sin(i[0]/1.5) +4 > i[1]:
     #if math.sinh(i[0])/math.sin(i[0]) + math.cosh(i[0])/math.cos(i[1]) + math.tanh(i[1])/math.tan(i[1]) < 3:
     #if i[1]> (i[0]):
-    if i[1] > i[0]**2:
+    #if i[1] > i[0]**2:
     #if i[1] >i[0]*math.tan(math.sqrt(i[0]**2+i[1]**2)):
     #if 5*math.sin(1/(0.01*(i[0]+3)))+7 > i[1]:
         outs.append([0,1])
@@ -304,10 +313,10 @@ for i in ins:
         plot2.append(i)
 plot1 = np.array(plot1)
 plot2 = np.array(plot2)
-plt.scatter(plot1[:,0],plot1[:,1])
 plt.scatter(plot2[:,0],plot2[:,1])
+plt.scatter(plot1[:,0],plot1[:,1])
 plt.show()
-#plt.ion()
+plt.ion()
 plt.show()
 lr = 0.0001
 epochs = 1000
@@ -398,14 +407,14 @@ def train(lr, epochs, network, ins, outs, loop):
             blues = np.array(blues)
             try:
                 plt.clf()
-                plt.scatter(reds[:,0],reds[:,1])
-                plt.scatter(blues[:,0],blues[:,1])
-                plt.draw()
-                #plt.show()
-                #plt.show(block=False)
-                plt.pause(1)
-                print("OK")
-                #plt.clf()
+                # plt.scatter(reds[:,0],reds[:,1])
+                # plt.scatter(blues[:,0],blues[:,1])
+                # plt.draw()
+                # #plt.show()
+                # #plt.show(block=False)
+                # plt.pause(1)
+                # print("OK")
+                # #plt.clf()
                 
                 pass
             except:
