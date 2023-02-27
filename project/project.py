@@ -1,17 +1,22 @@
 import pygame
 import numpy as np
 import math 
+from numba import jit
 
 # Initialize the game window
 pygame.init()
-global size 
-global scale
-global interact_range
 scale = 0.1
 size = 800
 interact_range = size/8
 window_size = (1920, 1080)
 screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
+
+@jit(nopython=True)
+def distance_calc(other_dist, interact_range):
+    other_dist = other_dist/(math.sqrt(2*interact_range**2)/32)
+    dx = other_dist%1 
+    sector = other_dist//1 
+    return dx,sector
 
 class Color(pygame.sprite.Sprite):
     def __init__(self, r, g, b, attraction_matrix,pos):
@@ -42,14 +47,10 @@ class Color(pygame.sprite.Sprite):
         self.rect.x = self.pos[0]
         self.rect.y = self.pos[1]
         
-
-    def update(self, obj, other_dist):
-        global size 
-        global interact_range
+    
+    def update(self, obj, other_dist, size, interact_range):
         other_pos = obj.pos 
-        other_dist = other_dist/(math.sqrt(2*interact_range**2)/32)
-        dx = other_dist%1 
-        sector = other_dist//1 
+        dx,sector = distance_calc(other_dist, interact_range)
         if sector <= 4:
             #dy/dx = 3
             dx = (dx + sector +1)/5
@@ -70,23 +71,9 @@ class Color(pygame.sprite.Sprite):
 
     def reset_vel(self):
         self.vel = [0,0]
-    def timestep(self):
-        global size
-        global scale
+    def timestep(self, scale):
         self.pos[0] += self.vel[0]*scale
         self.pos[1] += self.vel[1]*scale
-        # if self.pos[0] < 0 or self.pos[0] > size:
-        #     if self.pos[0] < 0:
-        #         self.pos[0] = 0 
-        #     else:
-        #         self.pos[0] = size
-        #     #self.vel[0] = -(3*self.vel[0]) 
-        # if self.pos[1] < 0 or self.pos[1] > size:
-        #     if self.pos[1] < 0:
-        #         self.pos[1] = 0 
-        #     else:
-        #         self.pos[1] = size
-        #     #self.vel[1] = -(self.vel[1]*3)
         self.rect.x = self.pos[0]
         self.rect.y = self.pos[1]
     
@@ -178,6 +165,13 @@ for i in range(50):
     spriteList.add(particles[-1])
 
 # Main game loop
+@jit(nopython=True)
+def in_range(dist, interact_range):
+    if dist < math.sqrt(2*interact_range**2):
+        return True
+    else:
+        return False 
+
 running = True
 while running:
     for event in pygame.event.get():
@@ -211,9 +205,9 @@ while running:
         i.reset_vel()
         for j in particles:
             dist = math.dist(i.pos, j.pos)
-            if dist < math.sqrt(2*interact_range**2) and  i.pos != j.pos:
-                i.update(j, dist)
-        i.timestep()
+            if in_range(dist, interact_range) and  i.pos != j.pos:
+                i.update(j, dist, size, interact_range)
+        i.timestep(scale)
     spriteList.draw(screen)
     
     pygame.display.flip()
