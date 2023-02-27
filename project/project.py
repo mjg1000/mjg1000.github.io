@@ -184,9 +184,9 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
-                scale -= 0.01
+                scale = scale*0.9
             if event.key == pygame.K_e:
-                scale += 0.01
+                scale = scale*1.1
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
         for i in particles:
