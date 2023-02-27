@@ -6,8 +6,10 @@ import math
 pygame.init()
 global size 
 global scale
+global interact_range
 scale = 0.1
 size = 800
+interact_range = size/8
 window_size = (1920, 1080)
 screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
 
@@ -41,11 +43,10 @@ class Color(pygame.sprite.Sprite):
         self.rect.y = self.pos[1]
         
 
-    def update(self, obj):
+    def update(self, obj, other_dist):
         global size 
-        interact_range = size/8
+        global interact_range
         other_pos = obj.pos 
-        other_dist = math.dist(self.pos, other_pos)
         other_dist = other_dist/(math.sqrt(2*interact_range**2)/32)
         dx = other_dist%1 
         sector = other_dist//1 
@@ -161,7 +162,7 @@ matrices = [{
 #     "green":2,
 #     }
 #     ]
-for i in range(30): 
+for i in range(50): 
     particles.append(Color(255, 255, 255, matrices[0], [np.random.randint(0,size),np.random.randint(0,size)]))
     spriteList.add(particles[-1])
     particles.append(Color(0, 0, 255, matrices[1], [np.random.randint(0,size),np.random.randint(0,size)]))
@@ -209,8 +210,9 @@ while running:
     for i in particles:
         i.reset_vel()
         for j in particles:
-            if i.pos != j.pos:
-                i.update(j)
+            dist = math.dist(i.pos, j.pos)
+            if dist < math.sqrt(2*interact_range**2) and  i.pos != j.pos:
+                i.update(j, dist)
         i.timestep()
     spriteList.draw(screen)
     
