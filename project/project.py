@@ -2,21 +2,40 @@ import pygame
 import numpy as np
 import math 
 from numba import jit
+import threading
+import concurrent.futures
 
 # Initialize the game window
+# https://www.youtube.com/watch?v=p4YirERTVF0
+
 pygame.init()
-scale = 0.1
+scale = 0.01
 size = 800
-interact_range = size/8
+interact_range = size/12
 window_size = (1920, 1080)
 screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
+import time 
 
 @jit(nopython=True)
 def distance_calc(other_dist, interact_range):
     other_dist = other_dist/(math.sqrt(2*interact_range**2)/32)
     dx = other_dist%1 
-    sector = other_dist//1 
+    sector = other_dist-dx 
     return dx,sector
+
+@jit(nopython=True)
+def trig(self_pos0, self_pos1, other_pos0, other_pos1, vel_mag):
+    a = self_pos1-other_pos1
+    b = self_pos0-other_pos0
+    try:
+        angle = (a)/(b) 
+        sign = abs(b)/(b)
+    except:
+        return(0,0)
+    sqrt = math.sqrt(1+angle**2)
+    self_vel0 = (-vel_mag/sqrt)*sign
+    self_vel1 = self_vel0*angle
+    return self_vel0,self_vel1
 
 class Color(pygame.sprite.Sprite):
     def __init__(self, r, g, b, attraction_matrix,pos):
@@ -64,10 +83,10 @@ class Color(pygame.sprite.Sprite):
             grad = self.attraction_matrix[obj.type]
             vel_mag = grad -(grad/10)*dx
         else:
-            vel_mag= 0 
-        angle = math.atan2((self.pos[1]-other_pos[1]),(self.pos[0]-other_pos[0]+0.001))
-        self.vel[0] -= vel_mag*math.cos(angle)
-        self.vel[1] -= vel_mag*math.sin(angle)
+            vel_mag= 0 #
+        vels = trig(self.pos[0],self.pos[1],other_pos[0], other_pos[1], vel_mag)
+        self.vel[0] += vels[0]
+        self.vel[1] += vels[1]
 
     def reset_vel(self):
         self.vel = [0,0]
@@ -77,7 +96,6 @@ class Color(pygame.sprite.Sprite):
         self.rect.x = self.pos[0]
         self.rect.y = self.pos[1]
     
-
 
 # Generate the initial state of the automaton
 spriteList = pygame.sprite.Group()
@@ -127,28 +145,6 @@ matrices = [{
     }
     ]
 
-# matrices = [{
-#     "white":2,
-#     "blue":0.5,
-#     "red":0, 
-#     "green":0,
-#     },{
-#     "white":0,
-#     "blue":2,
-#     "red":0.5, 
-#     "green":0,
-#     },{
-#     "white":0,
-#     "blue":0,
-#     "red":2, 
-#     "green":0.5,
-#     },{
-#     "white":0.5,
-#     "blue":0,
-#     "red":0, 
-#     "green":2,
-#     }
-#     ]
 for i in range(50): 
     particles.append(Color(255, 255, 255, matrices[0], [np.random.randint(0,size),np.random.randint(0,size)]))
     spriteList.add(particles[-1])
@@ -171,46 +167,48 @@ def in_range(dist, interact_range):
         return True
     else:
         return False 
+def iterate(particles, i, size, scale):
+    i.reset_vel()
+    for j in particles:
+        dist = math.dist(i.pos, j.pos)
+        if in_range(dist, interact_range) and  i.pos != j.pos:
+            i.update(j,dist,size,interact_range)
+    i.timestep(scale)
+
 
 running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_q:
-                scale = scale*0.9
-            if event.key == pygame.K_e:
-                scale = scale*1.1
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_w]:
+with concurrent.futures.ThreadPoolExecutor(max_workers=10000) as executor:
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    scale = scale*0.9
+                if event.key == pygame.K_e:
+                    scale = scale*1.1
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_w]:
+            for i in particles:
+                i.pos[1] += 10 
+        if keys[pygame.K_s]:
+            for i in particles:
+                i.pos[1] -= 10 
+        if keys[pygame.K_a]:
+            for i in particles:
+                i.pos[0] += 10 
+        if keys[pygame.K_d]:
+            for i in particles:
+                i.pos[0] -= 10 
+        screen.fill((0, 0, 0))
+        threads = []   
         for i in particles:
-            i.pos[1] += 10 
-    if keys[pygame.K_s]:
-        for i in particles:
-            i.pos[1] -= 10 
-    if keys[pygame.K_a]:
-        for i in particles:
-            i.pos[0] += 10 
-    if keys[pygame.K_d]:
-        for i in particles:
-            i.pos[0] -= 10 
-            
-            
-    
-    
-    # Render the automaton
-    screen.fill((0, 0, 0))
-    for i in particles:
-        i.reset_vel()
-        for j in particles:
-            dist = math.dist(i.pos, j.pos)
-            if in_range(dist, interact_range) and  i.pos != j.pos:
-                i.update(j, dist, size, interact_range)
-        i.timestep(scale)
-    spriteList.draw(screen)
-    
-    pygame.display.flip()
+            thr = executor.submit(iterate, particles,i,size, scale)
+            threads.append(thr)
+        completed, _ = concurrent.futures.wait(threads)
+                
+        spriteList.draw(screen)    
+        pygame.display.flip()
 
 # Quit the game
 pygame.quit()
