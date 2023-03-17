@@ -200,6 +200,28 @@ def trig(self_pos0, self_pos1, other_pos0, other_pos1, vel_mag):
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
 
+def mathStuff(i, ipos, j,type, interact_range):
+    dist = math.dist([ipos[0],ipos[1]],[j[0],j[1]])
+    if in_range(dist, interact_range) and  ipos != j: # if j is in range 
+        dx,sector = distance_calc(dist, interact_range) # get sector the particles are in 
+        if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
+            #dy/dx = 3
+            dx = (dx + sector +1)/5
+            vel_mag = -1 *(1/dx)**2
+        elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
+            dx = dx + sector-5
+            grad = i.attraction_matrix[type]/12
+            vel_mag = grad*dx 
+        elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
+            dx = dx + sector-16
+            grad = i.attraction_matrix[type]
+            vel_mag = grad -(grad/10)*dx
+        else: # too far - 0 velocity
+            vel_mag= 0 
+        vels = trig(ipos[0],ipos[1],j[0], j[1], vel_mag) # get what the velocity should be 
+        ipos[2] += vels[0]*scale
+        ipos[3] += vels[1]*scale
+    return(ipos)
 # Main game loop
 running = True
 while running:
@@ -230,27 +252,7 @@ while running:
         positions[c1][2] = 0 
         positions[c1][3] = 0
         for c2,j in enumerate(particles): # calculate attraction to each other particle j 
-            dist = math.dist([positions[c1][0],positions[c1][1]],[positions[c2][0], positions[c2][1]])
-            if in_range(dist, interact_range) and  positions[c1] != positions[c2]: # if j is in range 
-                other_pos = positions[c2] 
-                dx,sector = distance_calc(dist, interact_range) # get sector the particles are in 
-                if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
-                    #dy/dx = 3
-                    dx = (dx + sector +1)/5
-                    vel_mag = -1 *(1/dx)**2
-                elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
-                    dx = dx + sector-5
-                    grad = i.attraction_matrix[j.type]/12
-                    vel_mag = grad*dx 
-                elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
-                    dx = dx + sector-16
-                    grad = i.attraction_matrix[j.type]
-                    vel_mag = grad -(grad/10)*dx
-                else: # too far - 0 velocity
-                    vel_mag= 0 
-                vels = trig(positions[c1][0],positions[c1][1],positions[c2][0], positions[c2][1], vel_mag) # get what the velocity should be 
-                positions[c1][2] += vels[0]*scale
-                positions[c1][3] += vels[1]*scale
+            positions[c1] = mathStuff(i,positions[c1],positions[c2],j.type, interact_range)
         positions[c1][0] += positions[c1][2]
         positions[c1][1] += positions[c1][3]
         
