@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 import math 
-from numba import jit
+from numba import jit, guvectorize, int32, float64
 import threading
 import concurrent.futures
 
@@ -200,7 +200,8 @@ def trig(self_pos0, self_pos1, other_pos0, other_pos1, vel_mag):
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
 
-def mathStuff(i, ipos, j,type, interact_range):
+@guvectorize([(int32[:], int32[:],  float64, float64[:], float64[:])],'(m),(n),(),(p)->(n)', forceobj=True)
+def mathStuff(ipos, j, interact_range, matrix, vels2):
     dist = math.dist([ipos[0],ipos[1]],[j[0],j[1]])
     if in_range(dist, interact_range) and  ipos != j: # if j is in range 
         dx,sector = distance_calc(dist, interact_range) # get sector the particles are in 
@@ -210,18 +211,25 @@ def mathStuff(i, ipos, j,type, interact_range):
             vel_mag = -1 *(1/dx)**2
         elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
             dx = dx + sector-5
-            grad = i.attraction_matrix[type]/12
+            grad = matrix[j[4]]/12
             vel_mag = grad*dx 
         elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
             dx = dx + sector-16
-            grad = i.attraction_matrix[type]
+            grad = matrix[j[4]]
             vel_mag = grad -(grad/10)*dx
         else: # too far - 0 velocity
             vel_mag= 0 
         vels = trig(ipos[0],ipos[1],j[0], j[1], vel_mag) # get what the velocity should be 
-        ipos[2] += vels[0]*scale
-        ipos[3] += vels[1]*scale
-    return(ipos)
+        print("__-")
+        print(vels[0],vels[1])
+        vels2[0] = vels[0]
+        vels2[1] = vels[1]
+        vels2[2] = 0.0
+        vels2[3] = 0.0
+        vels2[4] = 0.0 
+    else:
+        vels2 = [0.0,0.0,0.0,0.0,0.0]
+        
 # Main game loop
 running = True
 while running:
@@ -247,15 +255,20 @@ while running:
         for i in range(len(particles)):
             positions[i][0] -= 10 
     screen.fill((0, 0, 0))
+    colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
     for c1,i in enumerate(particles): # for each particle i
         i.timestep(positions[c1][0],positions[c1][1]) # update position  
         positions[c1][2] = 0 
         positions[c1][3] = 0
-        for c2,j in enumerate(particles): # calculate attraction to each other particle j 
-            positions[c1] = mathStuff(i,positions[c1],positions[c2],j.type, interact_range)
-        positions[c1][0] += positions[c1][2]
-        positions[c1][1] += positions[c1][3]
-        
+        types = [colourToNumber[j.type] for j in particles]
+        matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
+        expand_pos = [[positions[j][0], positions[j][1], positions[j][2], positions[j][3],types[j]] for j in range(len(types))]
+        v = mathStuff(positions[c1],expand_pos, interact_range, matrixes)
+        print(v)
+        v = [sum([row[0] if type(row[0]) == float else 0 for row in v]), sum([row[1] if type(row[1]) == float else 0 for row in v])]
+        print(v)
+        positions[c1][0] += v[0]*scale
+        positions[c1][1] += v[1]*scale
     spriteList.draw(screen) # display particles
     pygame.display.flip()
 
