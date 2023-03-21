@@ -150,7 +150,7 @@ matrices = [{
 positions = [] 
 
 # add the particles to the sprite list and spawn them randomly 
-for i in range(50): 
+for i in range(100): 
     particles.append(Color(255, 255, 255, matrices[0]))
     positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
     spriteList.add(particles[-1])
