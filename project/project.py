@@ -218,7 +218,7 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
                 vel_mag = grad -(grad/10)*dx
             else: # too far - 0 velocity
                 vel_mag= 0 
-            vels = trig(delta1, delta2, vel_mag) # get what the velocity should be 
+            vels = trig(delta2,delta1, vel_mag) # get what the velocity should be 
             vels2[0] = vels[0]
             vels2[1] = vels[1]
         else:
@@ -261,9 +261,8 @@ while running:
         positions[c1][2] = 0 
         positions[c1][3] = 0
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
-        expand_pos = np.asarray([[int(positions[j][0]), int(positions[j][1]), int(positions[j][2]), int(positions[j][3]),int(types[j])] for j in range(len(types))])
-        ckpt = time.time_ns()
-        v = np.asarray(mathStuff([int(i) for i in positions[c1]],expand_pos, int(interact_range), matrixes))
+        expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
+        v = np.asarray(mathStuff([int(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
         v = np.sum(v, axis=0)
         positions[c1][0] += v[0]*scale
         positions[c1][1] += v[1]*scale
