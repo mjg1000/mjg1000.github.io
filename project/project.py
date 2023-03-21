@@ -169,6 +169,7 @@ for i in range(50):
     particles.append(Color(0, 200, 200, matrices[5]))
     positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
     spriteList.add(particles[-1])
+positions = np.asarray(positions)
 
 @jit(nopython=True)
 def in_range(dist, interact_range):
@@ -187,49 +188,49 @@ def distance_calc(other_dist, interact_range):
 
 # get velx and vely from velTotal and posx and posy 
 @jit(nopython=True)
-def trig(self_pos0, self_pos1, other_pos0, other_pos1, vel_mag):
-    a = self_pos1-other_pos1
-    b = self_pos0-other_pos0
-    try:
-        angle = (a)/(b) 
-        sign = abs(b)/(b)
-    except:
-        return(0,0)
+def trig(a,b, vel_mag):
+    angle = a/b
+    sign = np.sign(b)
     sqrt = math.sqrt(1+angle**2)
     self_vel0 = (-vel_mag/sqrt)*sign
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
 
-@guvectorize([(int32[:], int32[:],  float64, float64[:], float64[:])],'(m),(n),(),(p)->(n)', forceobj=True)
+@guvectorize([(int32[:], int32[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
 def mathStuff(ipos, j, interact_range, matrix, vels2):
-    dist = math.dist([ipos[0],ipos[1]],[j[0],j[1]])
-    if in_range(dist, interact_range) and  ipos != j: # if j is in range 
-        dx,sector = distance_calc(dist, interact_range) # get sector the particles are in 
-        if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
-            #dy/dx = 3
-            dx = (dx + sector +1)/5
-            vel_mag = -1 *(1/dx)**2
-        elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
-            dx = dx + sector-5
-            grad = matrix[j[4]]/12
-            vel_mag = grad*dx 
-        elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
-            dx = dx + sector-16
-            grad = matrix[j[4]]
-            vel_mag = grad -(grad/10)*dx
-        else: # too far - 0 velocity
-            vel_mag= 0 
-        vels = trig(ipos[0],ipos[1],j[0], j[1], vel_mag) # get what the velocity should be 
-        print("__-")
-        print(vels[0],vels[1])
-        vels2[0] = vels[0]
-        vels2[1] = vels[1]
-        vels2[2] = 0.0
-        vels2[3] = 0.0
-        vels2[4] = 0.0 
+    if (ipos[0] != j[0] and ipos[1] != j[1]):
+        delta1 = (ipos[0]-j[0])
+        delta2 = (ipos[1]-j[1])
+        dist = int(math.sqrt(delta1**2 + delta2**2))
+        if in_range(dist, interact_range): # if j is in range 
+            dx,sector = distance_calc(dist, interact_range) # get sector the particles are in
+            if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
+                #dy/dx = 3
+                dx = (dx + sector +1)/5
+                vel_mag = -(1/dx)**2
+            elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
+                dx = dx + sector-5
+                grad = matrix[int(j[4])]/12
+                vel_mag = grad*dx 
+            elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
+                dx = dx + sector-16
+                grad = matrix[int(j[4])]
+                vel_mag = grad -(grad/10)*dx
+            else: # too far - 0 velocity
+                vel_mag= 0 
+            vels = trig(delta1, delta2, vel_mag) # get what the velocity should be 
+            vels2[0] = vels[0]
+            vels2[1] = vels[1]
+        else:
+            vels2[0] = 0.0
+            vels2[1] = 0.0
     else:
-        vels2 = [0.0,0.0,0.0,0.0,0.0]
-        
+        vels2[0] = 0.0
+        vels2[1] = 0.0
+# vectorization params 
+colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
+types = [colourToNumber[j.type] for j in particles]
+
 # Main game loop
 running = True
 while running:
@@ -255,18 +256,15 @@ while running:
         for i in range(len(particles)):
             positions[i][0] -= 10 
     screen.fill((0, 0, 0))
-    colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
     for c1,i in enumerate(particles): # for each particle i
         i.timestep(positions[c1][0],positions[c1][1]) # update position  
         positions[c1][2] = 0 
         positions[c1][3] = 0
-        types = [colourToNumber[j.type] for j in particles]
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
-        expand_pos = [[positions[j][0], positions[j][1], positions[j][2], positions[j][3],types[j]] for j in range(len(types))]
-        v = mathStuff(positions[c1],expand_pos, interact_range, matrixes)
-        print(v)
-        v = [sum([row[0] if type(row[0]) == float else 0 for row in v]), sum([row[1] if type(row[1]) == float else 0 for row in v])]
-        print(v)
+        expand_pos = np.asarray([[int(positions[j][0]), int(positions[j][1]), int(positions[j][2]), int(positions[j][3]),int(types[j])] for j in range(len(types))])
+        ckpt = time.time_ns()
+        v = np.asarray(mathStuff([int(i) for i in positions[c1]],expand_pos, int(interact_range), matrixes))
+        v = np.sum(v, axis=0)
         positions[c1][0] += v[0]*scale
         positions[c1][1] += v[1]*scale
     spriteList.draw(screen) # display particles
