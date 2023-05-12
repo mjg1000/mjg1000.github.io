@@ -10,7 +10,7 @@ import concurrent.futures
 
 # setup 
 pygame.init()
-scale = 1 #time scale 
+scale = 0.3 #time scale 
 size = 800 # spawn range  
 interact_range = size/12
 window_size = (1920, 1080)
@@ -25,20 +25,6 @@ def distance_calc(other_dist, interact_range):
     sector = other_dist-dx 
     return dx,sector
 
-# get velx and vely from velTotal and posx and posy 
-@jit(nopython=True)
-def trig(self_pos0, self_pos1, other_pos0, other_pos1, vel_mag):
-    a = self_pos1-other_pos1
-    b = self_pos0-other_pos0
-    try:
-        angle = (a)/(b) 
-        sign = abs(b)/(b)
-    except:
-        return(0,0)
-    sqrt = math.sqrt(1+angle**2)
-    self_vel0 = (-vel_mag/sqrt)*sign
-    self_vel1 = self_vel0*angle
-    return self_vel0,self_vel1
 
 # particle class 
 class Color(pygame.sprite.Sprite):
@@ -152,25 +138,24 @@ positions = []
 # add the particles to the sprite list and spawn them randomly 
 for i in range(100): 
     particles.append(Color(255, 255, 255, matrices[0]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
     particles.append(Color(0, 0, 255, matrices[1]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
     particles.append(Color(255, 0, 0, matrices[2]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
     particles.append(Color(0, 255, 0, matrices[3]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
     particles.append(Color(200, 0, 200, matrices[4]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
     particles.append(Color(0, 200, 200, matrices[5]))
-    positions.append([np.random.randint(0,size),np.random.randint(0,size), 0, 0])
+    positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
 positions = np.asarray(positions)
-
 @jit(nopython=True)
 def in_range(dist, interact_range):
     if dist < math.sqrt(2*interact_range**2):
@@ -196,12 +181,12 @@ def trig(a,b, vel_mag):
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
 
-@guvectorize([(int32[:], int32[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
+@guvectorize([(float64[:], float64[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
 def mathStuff(ipos, j, interact_range, matrix, vels2):
     if (ipos[0] != j[0] and ipos[1] != j[1]):
         delta1 = (ipos[0]-j[0])
         delta2 = (ipos[1]-j[1])
-        dist = int(math.sqrt(delta1**2 + delta2**2))
+        dist = (math.sqrt(delta1**2 + delta2**2))
         if in_range(dist, interact_range): # if j is in range 
             dx,sector = distance_calc(dist, interact_range) # get sector the particles are in
             if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
@@ -227,10 +212,9 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
     else:
         vels2[0] = 0.0
         vels2[1] = 0.0
-# vectorization params 
+## vectorization params 
 colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
 types = [colourToNumber[j.type] for j in particles]
-
 # Main game loop
 running = True
 while running:
@@ -262,7 +246,7 @@ while running:
         positions[c1][3] = 0
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
         expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
-        v = np.asarray(mathStuff([int(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+        v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
         v = np.sum(v, axis=0)
         positions[c1][0] += v[0]*scale
         positions[c1][1] += v[1]*scale
