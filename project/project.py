@@ -45,7 +45,8 @@ class Color(pygame.sprite.Sprite):
             self.type = "purple"
         elif b == 200:
             self.type = "cyan"
-
+        self.genes = [] 
+        self.hp = 100
         # create sprite image 
         self.radius = 2
         self.image = pygame.Surface((self.radius*2, self.radius*2))
@@ -240,16 +241,28 @@ while running:
         for i in range(len(particles)):
             positions[i][0] -= 10 
     screen.fill((0, 0, 0))
-    for c1,i in enumerate(particles): # for each particle i
-        i.timestep(positions[c1][0],positions[c1][1]) # update position  
-        positions[c1][2] = 0 
-        positions[c1][3] = 0
+    offset = 0 
+    for c1,i in enumerate(particles): # for each particle
+        i.timestep(positions[c1-offset][0],positions[c1-offset][1]) # update position  
+        positions[c1-offset][2] = 0 
+        positions[c1-offset][3] = 0
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
         expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
-        v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+        v = np.asarray(mathStuff([(y) for y in positions[c1-offset]],expand_pos, int(interact_range), matrixes))
         v = np.sum(v, axis=0)
-        positions[c1][0] += v[0]*scale
-        positions[c1][1] += v[1]*scale
+        i.hp -= math.sqrt(v[0]**2+v[1]**2)/1 
+        
+        positions[c1-offset][0] += v[0]*scale
+        positions[c1-offset][1] += v[1]*scale
+    for c1,i in enumerate(particles):
+        if i.hp <= 0:
+            i.kill()
+            #del i 
+            del types[c1-offset]
+            positions = np.delete(positions, c1-offset, 0)
+            del particles[c1-offset] 
+            offset += 1
+            break
     spriteList.draw(screen) # display particles
     pygame.display.flip()
 
