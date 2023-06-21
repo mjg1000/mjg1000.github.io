@@ -35,26 +35,48 @@ class Color(pygame.sprite.Sprite):
         self.vel = [0,0]
         if r == 255 and g == 255:
             self.type = "white"
+            self.code = 0
         elif r == 255:
             self.type = "red"
+            self.code = 2 
         elif g == 255:
             self.type = "green"
+            self.code =3 
         elif b == 255:
             self.type = "blue"
+            self.code =1 
         elif r == 200:
             self.type = "purple"
+            self.code = 4
         elif b == 200:
             self.type = "cyan"
-        self.genes = [] 
+            self.code = 5 
+        self.genes = {"breedchance":np.random.rand()/10, 
+                      "white":0,
+                      "blue":0,
+                      "red":0, 
+                      "green":0,
+                      "purple":0, 
+                      "cyan":0,}
         self.hp = 100
+        drift = [abs(self.genes[k]) for k in self.genes if k != "breedchance"]
+        drift = np.sum(drift)/(1.5*6)
         # create sprite image 
         self.radius = 2
         self.image = pygame.Surface((self.radius*2, self.radius*2))
         self.image.fill((0,0,0))
         self.image.set_colorkey((0,0,0))
         pygame.draw.circle(self.image, (r,g,b), (self.radius, self.radius), self.radius)
+        pygame.draw.circle(self.image, (255*drift,255*drift,255*drift), (self.radius, self.radius), self.radius/2)
         self.rect = self.image.get_rect()
         
+    def set_genes(self,genes):
+        self.genes = genes
+        drift = [abs(self.genes[k]) for k in self.genes if k != "breedchance"]
+        drift = np.sum(drift)/(1.5*6)
+        drift = drift*15
+        pygame.draw.circle(self.image, (255*drift,255*drift,255*drift), (self.radius, self.radius), self.radius/2)
+    
     # perform calculations to update velocity  
     def update(self, obj, other_dist, size, interact_range):
         other_pos = obj.pos 
@@ -184,6 +206,8 @@ def trig(a,b, vel_mag):
 
 @guvectorize([(float64[:], float64[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
 def mathStuff(ipos, j, interact_range, matrix, vels2):
+    vels2[2] = 0 
+    vels2[3] = 0
     if (ipos[0] != j[0] and ipos[1] != j[1]):
         delta1 = (ipos[0]-j[0])
         delta2 = (ipos[1]-j[1])
@@ -210,6 +234,8 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
         else:
             vels2[0] = 0.0
             vels2[1] = 0.0
+        if in_range(dist, interact_range/4):
+            vels2[2] = int(j[4])+1
     else:
         vels2[0] = 0.0
         vels2[1] = 0.0
@@ -241,19 +267,38 @@ while running:
         for i in range(len(particles)):
             positions[i][0] -= 10 
     screen.fill((0, 0, 0))
-    offset = 0 
+    children = [] 
     for c1,i in enumerate(particles): # for each particle
-        i.timestep(positions[c1-offset][0],positions[c1-offset][1]) # update position  
-        positions[c1-offset][2] = 0 
-        positions[c1-offset][3] = 0
+        i.timestep(positions[c1][0],positions[c1][1]) # update position  
+        positions[c1][2] = 0 
+        positions[c1][3] = 0
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
         expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
-        v = np.asarray(mathStuff([(y) for y in positions[c1-offset]],expand_pos, int(interact_range), matrixes))
+        v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+        if i.genes["breedchance"] >= 0.001 and np.random.randint(0,1/(i.genes["breedchance"]**2)) == 0 and i.hp >= 30:
+            parents = v[:,2]
+            parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
+            if len(parents) != 0:
+                parent = np.random.choice(parents)
+                if particles[parent].hp >= 30:
+                    i.hp -= 30
+                    particles[parent].hp -= 30 
+                    newGenes = {}
+                    for gene in i.genes:
+                        prop = np.random.rand()
+                        value = (i.genes[gene]*prop+particles[parent].genes[gene]*(1-prop))
+                        if gene != "breedchance":
+                            value += np.random.rand()/10 - 0.05 
+                        newGenes[gene]=value
+                    children.append([i.color,newGenes,i.code,positions[parent]])
+                    
+                    
         v = np.sum(v, axis=0)
-        i.hp -= math.sqrt(v[0]**2+v[1]**2)/1 
+        i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/2)
         
-        positions[c1-offset][0] += v[0]*scale
-        positions[c1-offset][1] += v[1]*scale
+        positions[c1][0] += v[0]*scale
+        positions[c1][1] += v[1]*scale
+    offset = 0 
     for c1,i in enumerate(particles):
         if i.hp <= 0:
             i.kill()
@@ -263,8 +308,20 @@ while running:
             del particles[c1-offset] 
             offset += 1
             break
+
     spriteList.draw(screen) # display particles
     pygame.display.flip()
+    
+    for i in children:
+        particles.append(Color(i[0][0],i[0][1],i[0][2],matrices[i[2]]))
+        particles[-1].set_genes(i[1])
+        for col in particles[-1].attraction_matrix:
+            particles[-1].attraction_matrix[col] += particles[-1].genes[col]
+        pos = [i[3][0]+0.12,i[3][1]-0.3,i[3][2],i[3][3]]
+        positions = np.append(positions,[pos], axis = 0)
+        spriteList.add(particles[-1])
+        types.append(i[2])
+
 
 # Quit the game
 pygame.quit()
