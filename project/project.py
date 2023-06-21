@@ -4,7 +4,7 @@ import math
 from numba import jit, guvectorize, int32, float64
 import threading
 import concurrent.futures
-
+import copy 
 # Initialize the game window
 # https://www.youtube.com/watch?v=p4YirERTVF0
 
@@ -31,7 +31,7 @@ class Color(pygame.sprite.Sprite):
     def __init__(self, r, g, b, attraction_matrix):
         super().__init__()
         self.color = (r, g, b)
-        self.attraction_matrix = attraction_matrix 
+        self.attraction_matrix = copy.copy(attraction_matrix)
         self.vel = [0,0]
         if r == 255 and g == 255:
             self.type = "white"
@@ -57,7 +57,8 @@ class Color(pygame.sprite.Sprite):
                       "red":0, 
                       "green":0,
                       "purple":0, 
-                      "cyan":0,}
+                      "cyan":0,
+                      "shareRate":copy.copy(shareRate)[self.type]}
         self.hp = 100
         drift = [abs(self.genes[k]) for k in self.genes if k != "breedchance"]
         drift = np.sum(drift)/(1.5*6)
@@ -71,11 +72,13 @@ class Color(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         
     def set_genes(self,genes):
+        sr = self.genes["shareRate"]
         self.genes = genes
+        self.genes["shareRate"] += sr 
         drift = [abs(self.genes[k]) for k in self.genes if k != "breedchance"]
         drift = np.sum(drift)/(1.5*6)
-        drift = drift*15
-        pygame.draw.circle(self.image, (255*drift,255*drift,255*drift), (self.radius, self.radius), self.radius/2)
+        drift = drift*5
+        pygame.draw.circle(self.image, (min(255,255*drift),min(255,255*drift),min(255,255*drift)), (self.radius, self.radius), self.radius/2)
     
     # perform calculations to update velocity  
     def update(self, obj, other_dist, size, interact_range):
@@ -110,6 +113,15 @@ class Color(pygame.sprite.Sprite):
 # Generate the initial state of the automaton
 spriteList = pygame.sprite.Group()
 particles = [] 
+global shareRate
+shareRate = {
+    "white":np.random.rand()*0.5,
+    "blue":np.random.rand()*0.5,
+    "red":np.random.rand()*0.5, 
+    "green":np.random.rand()*0.5,
+    "purple":np.random.rand()*0.5, 
+    "cyan":np.random.rand()*0.5,
+    }
 # randomly generate attraction matrices for each colour 
 matrices = [{
     "white":np.random.rand()*1.5-0.5,
@@ -267,17 +279,29 @@ while running:
         for i in range(len(particles)):
             positions[i][0] -= 10 
     screen.fill((0, 0, 0))
-    children = [] 
+    children = []
     for c1,i in enumerate(particles): # for each particle
         i.timestep(positions[c1][0],positions[c1][1]) # update position  
         positions[c1][2] = 0 
         positions[c1][3] = 0
+         
         matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
         expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
         v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
-        if i.genes["breedchance"] >= 0.001 and np.random.randint(0,1/(i.genes["breedchance"]**2)) == 0 and i.hp >= 30:
-            parents = v[:,2]
-            parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
+         
+        close = [-1]
+        if i.hp >= 100*(1-i.genes["shareRate"]):
+            close = v[:,2]
+            close2 = next((a for a,x in enumerate(close) if x!= 0), "ran out")
+            if close2 != "ran out": 
+                particles[close2].hp += 1.5*scale
+                i.hp -= 1.5*scale
+            
+        if i.genes["breedchance"]*scale >= 0.001 and np.random.randint(0,1/((i.genes["breedchance"]*scale*3)**2)) == 0 and i.hp >= 30:
+            if close[0] != -1:
+                parents = [a for a,x in enumerate(close) if x != 0 and x-1 == int(types[c1])]
+            else: 
+                parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
             if len(parents) != 0:
                 parent = np.random.choice(parents)
                 if particles[parent].hp >= 30:
@@ -294,7 +318,7 @@ while running:
                     
                     
         v = np.sum(v, axis=0)
-        i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/2)
+        i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
         
         positions[c1][0] += v[0]*scale
         positions[c1][1] += v[1]*scale
@@ -308,10 +332,9 @@ while running:
             del particles[c1-offset] 
             offset += 1
             break
-
     spriteList.draw(screen) # display particles
     pygame.display.flip()
-    
+     
     for i in children:
         particles.append(Color(i[0][0],i[0][1],i[0][2],matrices[i[2]]))
         particles[-1].set_genes(i[1])
