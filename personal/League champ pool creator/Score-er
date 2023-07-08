@@ -20,7 +20,7 @@ def compute(pool, history):
 
 options = queue.PriorityQueue()
 history = [] 
-pool = ["Gnar"] #<---------------------------------------------------------
+pool = [] #<---------------------------------------------------------
 weights = [2.5*2.7182**(-0.15*a) for a in range(36)]
 print(np.average(weights))
 for i in data:
