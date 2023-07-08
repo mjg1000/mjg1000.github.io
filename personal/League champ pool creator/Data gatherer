@@ -1,0 +1,51 @@
+import requests
+from bs4 import BeautifulSoup
+import re 
+import html as ht
+# Step 1: Visit the webpage and download the HTML
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+url = "https://u.gg/lol/top-lane-tier-list"
+response = requests.get(url, headers=headers)
+html = str(ht.unescape(response.text).encode("utf-8"))
+#print(html)
+# Step 2: Find all locations of the string "lol/champions/"
+start_phrase = "id\":\""
+end_phrase = "\""
+start_indices = [m.start() + len(start_phrase) for m in re.finditer(start_phrase, html)][:168]
+champion_names = [] 
+for x in start_indices:
+
+    champion_names.append(html[x:].partition(end_phrase)[0])
+print(champion_names[:])
+
+# Step 6-11: Process each champion
+champion_datas = {}
+length = len(champion_names)
+for index, champion in enumerate(champion_names):
+    champion_url = f"https://u.gg/lol/champions/{champion}/matchups"
+    champion_response = requests.get(champion_url, headers=headers)
+    champion_html = str(ht.unescape(champion_response.text).encode("utf-8"))
+    if "Matchups for Top" in champion_html:
+        champion_datas[champion] = {}
+        phrase = "role=\"row\""
+        # Step 8: Find all instances of "role="row""
+        row_indices = [m.start() + len(phrase) for m in re.finditer(phrase, champion_html)]
+        row_indices = row_indices[1:]  # Remove the first occurrence
+
+        # Step 9-11: Process each row and extract data
+        for row_index in row_indices:
+            # Step 9: Extract the key between "<strong>" and "<"
+            key_start = champion_html.index("<strong>", row_index) + len("<strong>")
+            key_end = champion_html.index("<", key_start)
+            key = champion_html[key_start:key_end].strip()
+
+            # Step 10: Extract the value between "<b>" and "%"
+            value_start = champion_html.index("<b>", key_end) + len("<b>")
+            value_end = champion_html.index("%", value_start)
+            value = champion_html[value_start:value_end].strip()
+
+            # Step 11: Add key-value pair to the champion's dictionary
+            champion_datas[champion][key]=value
+    print(index/length)
+# Step 12: Print the array of champion names
+print(champion_datas)
