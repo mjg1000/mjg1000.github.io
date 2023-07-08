@@ -58,7 +58,7 @@ for i in data:
 toShow = int(input("how many results do you want?"))
 for i in range(toShow):
     a = options.get() 
-    b = compute(options.get()[1][:-1], data)
+    b = compute(a[1][:-1], data)
     print("pool = ")
     print(a[1][:-1])
     print("picks = ")
