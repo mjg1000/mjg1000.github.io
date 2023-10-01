@@ -33,7 +33,7 @@ class Color(pygame.sprite.Sprite):
         self.color = (r, g, b)
         self.attraction_matrix = copy.copy(attraction_matrix)
         self.vel = [0,0]
-        if r == 255 and g == 255:
+        if r == 255 and g == 255: # setting type 
             self.type = "white"
             self.code = 0
         elif r == 255:
@@ -51,6 +51,7 @@ class Color(pygame.sprite.Sprite):
         elif b == 200:
             self.type = "cyan"
             self.code = 5 
+        
         self.genes = {"breedchance":np.random.rand()/10, 
                       "white":0,
                       "blue":0,
@@ -60,6 +61,7 @@ class Color(pygame.sprite.Sprite):
                       "cyan":0,
                       "shareRate":copy.copy(shareRate)[self.type]}
         self.hp = 100
+        # defining genetic drift 
         drift = [abs(self.genes[k]) for k in self.genes if k != "breedchance"]
         drift = np.sum(drift)/(1.5*6)
         # create sprite image 
@@ -251,100 +253,135 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
     else:
         vels2[0] = 0.0
         vels2[1] = 0.0
+
+@jit(nopython=True)
+def share(v, i_hp, i_genes_sr ):
+    quantity = 0 
+    close2 = -1 
+    if i_hp >= 100*(1-i_genes_sr):
+        close = v[:,2]
+        count = 0 
+        for x in close:
+            if x != 0:
+                close2 = count 
+                break
+            count += 1 
+        if close2 != -1: 
+            quantity = 1.5*scale
+
+    return close2, quantity
+
 ## vectorization params 
 colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
 types = [colourToNumber[j.type] for j in particles]
-# Main game loop
-running = True
-while running:
-    for event in pygame.event.get(): # allow quitting 
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN: # speed up or slow down time with q and e 
-            if event.key == pygame.K_q:
-                scale = scale*0.9
-            if event.key == pygame.K_e:
-                scale = scale*1.1
-    keys = pygame.key.get_pressed() # move camera around by moving all particles 
-    if keys[pygame.K_w]:
-        for i in range(len(particles)):
-            positions[i][1] += 10 
-    if keys[pygame.K_s]:
-        for i in range(len(particles)):
-            positions[i][1] -= 10 
-    if keys[pygame.K_a]:
-        for i in range(len(particles)):
-            positions[i][0] += 10 
-    if keys[pygame.K_d]:
-        for i in range(len(particles)):
-            positions[i][0] -= 10 
-    screen.fill((0, 0, 0))
-    children = []
-    for c1,i in enumerate(particles): # for each particle
-        i.timestep(positions[c1][0],positions[c1][1]) # update position  
-        positions[c1][2] = 0 
-        positions[c1][3] = 0
-         
-        matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
-        expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
-        v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
-         
-        close = [-1]
-        if i.hp >= 100*(1-i.genes["shareRate"]):
-            close = v[:,2]
-            close2 = next((a for a,x in enumerate(close) if x!= 0), "ran out")
-            if close2 != "ran out": 
-                particles[close2].hp += 1.5*scale
-                i.hp -= 1.5*scale
-            
-        if i.genes["breedchance"]*scale >= 0.001 and np.random.randint(0,1/((i.genes["breedchance"]*scale*3)**2)) == 0 and i.hp >= 30:
-            if close[0] != -1:
-                parents = [a for a,x in enumerate(close) if x != 0 and x-1 == int(types[c1])]
-            else: 
-                parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
-            if len(parents) != 0:
-                parent = np.random.choice(parents)
-                if particles[parent].hp >= 30:
-                    i.hp -= 30
-                    particles[parent].hp -= 30 
-                    newGenes = {}
-                    for gene in i.genes:
-                        prop = np.random.rand()
-                        value = (i.genes[gene]*prop+particles[parent].genes[gene]*(1-prop))
-                        if gene != "breedchance":
-                            value += np.random.rand()/10 - 0.05 
-                        newGenes[gene]=value
-                    children.append([i.color,newGenes,i.code,positions[parent]])
-                    
-                    
-        v = np.sum(v, axis=0)
-        i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
-        
-        positions[c1][0] += v[0]*scale
-        positions[c1][1] += v[1]*scale
-    offset = 0 
-    for c1,i in enumerate(particles):
-        if i.hp <= 0:
-            i.kill()
-            #del i 
-            del types[c1-offset]
-            positions = np.delete(positions, c1-offset, 0)
-            del particles[c1-offset] 
-            offset += 1
-            break
-    spriteList.draw(screen) # display particles
-    pygame.display.flip()
-     
-    for i in children:
-        particles.append(Color(i[0][0],i[0][1],i[0][2],matrices[i[2]]))
-        particles[-1].set_genes(i[1])
-        for col in particles[-1].attraction_matrix:
-            particles[-1].attraction_matrix[col] += particles[-1].genes[col]
-        pos = [i[3][0]+0.12,i[3][1]-0.3,i[3][2],i[3][3]]
-        positions = np.append(positions,[pos], axis = 0)
-        spriteList.add(particles[-1])
-        types.append(i[2])
+def menu():
+    font = pygame.font.Font('freesansbold.ttf', 50)
+    title = font.render("Particle Life Simulation",True, (255,255,255),(0,0,0))
+    rect = title.get_rect()
+    rect = (1920//3, 1080//6)
+    screen.blit(title, rect)
+    pygame.draw.rect(screen, (81,210,112), [700,1080//3 - 25, 425,100],border_radius=25)
+    font = pygame.font.Font('freesansbold.ttf', 40)
+    start_text = font.render("start",True, (240,116,35),(81,210,112))
+    start_text_rect = start_text.get_rect()
+    start_text_rect = (860, 1080//3)
+    screen.blit(start_text, start_text_rect)
+    
+    return False
 
+    
+# Main game loop
+running = False
+while True:
+    screen.fill((0, 0, 0))
+    if running == False:
+        for event in pygame.event.get(): # allow quitting 
+            if event.type == pygame.QUIT:
+                pygame.quit()
+        running = menu() 
+    else:
+        for event in pygame.event.get(): # allow quitting 
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.KEYDOWN: # speed up or slow down time with q and e 
+                if event.key == pygame.K_q:
+                    scale = scale*0.9
+                if event.key == pygame.K_e:
+                    scale = scale*1.1
+        keys = pygame.key.get_pressed() # move camera around by moving all particles 
+        if keys[pygame.K_w]:
+            for i in range(len(particles)):
+                positions[i][1] += 10 
+        if keys[pygame.K_s]:
+            for i in range(len(particles)):
+                positions[i][1] -= 10 
+        if keys[pygame.K_a]:
+            for i in range(len(particles)):
+                positions[i][0] += 10 
+        if keys[pygame.K_d]:
+            for i in range(len(particles)):
+                positions[i][0] -= 10 
+        
+        children = []
+        ckpt = time.time_ns() 
+        for c1,i in enumerate(particles): # for each particle
+            i.timestep(positions[c1][0],positions[c1][1]) # update position  
+            positions[c1][2] = 0 
+            positions[c1][3] = 0
+            
+            matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
+            expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
+            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+            close = [-1]
+            sharing = share(v, i.hp, i.genes["shareRate"])
+            if sharing[0] != -1:
+                particles[sharing[0]].hp += sharing[1] 
+                i.hp -= sharing[1] 
+            if i.genes["breedchance"]*scale >= 0.001 and np.random.randint(0,1/((i.genes["breedchance"]*scale*3)**2)) == 0 and i.hp >= 30:
+                if close[0] != -1:
+                    parents = [a for a,x in enumerate(close) if x != 0 and x-1 == int(types[c1])]
+                else: 
+                    parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
+                if len(parents) != 0:
+                    parent = np.random.choice(parents)
+                    if particles[parent].hp >= 30:
+                        i.hp -= 30
+                        particles[parent].hp -= 30 
+                        newGenes = {}
+                        for gene in i.genes:
+                            prop = np.random.rand()
+                            value = (i.genes[gene]*prop+particles[parent].genes[gene]*(1-prop))
+                            if gene != "breedchance":
+                                value += np.random.rand()/10 - 0.05 
+                            newGenes[gene]=value
+                        children.append([i.color,newGenes,i.code,positions[parent]])
+                        
+            v = np.sum(v, axis=0)
+            i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
+            
+            positions[c1][0] += v[0]*scale
+            positions[c1][1] += v[1]*scale
+        offset = 0 
+        for c1,i in enumerate(particles):
+            if i.hp <= 0:
+                i.kill()
+                #del i 
+                del types[c1-offset]
+                positions = np.delete(positions, c1-offset, 0)
+                del particles[c1-offset] 
+                offset += 1
+                break
+        spriteList.draw(screen) # display particles
+        
+        for i in children:
+            particles.append(Color(i[0][0],i[0][1],i[0][2],matrices[i[2]]))
+            particles[-1].set_genes(i[1])
+            for col in particles[-1].attraction_matrix:
+                particles[-1].attraction_matrix[col] += particles[-1].genes[col]
+            pos = [i[3][0]+0.12,i[3][1]-0.3,i[3][2],i[3][3]]
+            positions = np.append(positions,[pos], axis = 0)
+            spriteList.add(particles[-1])
+            types.append(i[2])
+    pygame.display.flip()
 
 # Quit the game
-pygame.quit()
