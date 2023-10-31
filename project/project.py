@@ -173,7 +173,7 @@ matrices = [{
 positions = [] 
 
 # add the particles to the sprite list and spawn them randomly 
-for i in range(100): 
+for i in range(40): 
     particles.append(Color(255, 255, 255, matrices[0]))
     positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
@@ -232,11 +232,11 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
                 #dy/dx = 3
                 dx = (dx + sector +1)/5
                 vel_mag = -(1/dx)**2
-            elif sector > 4 and sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
+            elif sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
                 dx = dx + sector-5
                 grad = matrix[int(j[4])]/12
                 vel_mag = grad*dx 
-            elif sector >16 and sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
+            elif sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
                 dx = dx + sector-16
                 grad = matrix[int(j[4])]
                 vel_mag = grad -(grad/10)*dx
@@ -274,31 +274,85 @@ def share(v, i_hp, i_genes_sr ):
 ## vectorization params 
 colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
 types = [colourToNumber[j.type] for j in particles]
-def menu():
+def menu(position):
     font = pygame.font.Font('freesansbold.ttf', 50)
     title = font.render("Particle Life Simulation",True, (255,255,255),(0,0,0))
     rect = title.get_rect()
     rect = (1920//3, 1080//6)
     screen.blit(title, rect)
-    pygame.draw.rect(screen, (81,210,112), [700,1080//3 - 25, 425,100],border_radius=25)
+    play_button_pos = [700,1080//3 - 25, 425,100]
+    pygame.draw.rect(screen, (81,210,112), play_button_pos,border_radius=25)
     font = pygame.font.Font('freesansbold.ttf', 40)
     start_text = font.render("start",True, (240,116,35),(81,210,112))
     start_text_rect = start_text.get_rect()
     start_text_rect = (860, 1080//3)
     screen.blit(start_text, start_text_rect)
-    
+
+    if position[0] > play_button_pos[0] and position[0] < play_button_pos[0]+play_button_pos[2] and position[1] > play_button_pos[1] and position[1] < play_button_pos[1]+play_button_pos[3]:
+        return True
     return False
 
     
 # Main game loop
 running = False
+data_major = {"Particle Loop":[], "Kill":[],"Create Children":[]}
+data_loop = {"Get Movement":[], "Share Food":[], "Breed":[]}
+fps = [] 
+clock = pygame.time.Clock()
 while True:
     screen.fill((0, 0, 0))
     if running == False:
+        position = (-1,-1)
         for event in pygame.event.get(): # allow quitting 
             if event.type == pygame.QUIT:
                 pygame.quit()
-        running = menu() 
+            elif event.type == pygame.MOUSEBUTTONUP:
+                position = pygame.mouse.get_pos() 
+                print(position)
+            
+        running = menu(position) 
+    elif running == "debug":
+        for event in pygame.event.get(): # allow quitting 
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.KEYDOWN: # speed up or slow down time with q and e 
+                if event.key == pygame.K_9:
+                    running == True
+        #major data
+        loop_data = [] 
+        for i,data in enumerate(data_major["Particle Loop"]):
+            loop_data.append((i,350-data))
+        pygame.draw.aalines(screen, (255,0,0),False,loop_data)
+        loop_data = [] 
+        for i,data in enumerate(data_major["Kill"]):
+            loop_data.append((i,350-data))
+        pygame.draw.aalines(screen, (0,255,0),False,loop_data)
+        loop_data = [] 
+        for i,data in enumerate(data_major["Create Children"]):
+            loop_data.append((i,350-data))
+        pygame.draw.aalines(screen, (0,0,255),False,loop_data)
+
+        # loop data
+        loop_data = [] 
+        for i,data in enumerate(data_loop["Get Movement"]):
+            loop_data.append((i,700-data))
+        pygame.draw.aalines(screen, (255,0,0),False,loop_data)
+        loop_data = [] 
+        for i,data in enumerate(data_loop["Share Food"]):
+            loop_data.append((i,700-data))
+        pygame.draw.aalines(screen, (0,255,0),False,loop_data)
+        loop_data = [] 
+        for i,data in enumerate(data_loop["Breed"]):
+            loop_data.append((i,700-data))
+        pygame.draw.aalines(screen, (0,0,255),False,loop_data)
+        
+        #fps data 
+        loop_data = [] 
+        for i,data in enumerate(fps):
+            loop_data.append((i,1050-data))
+        pygame.draw.aalines(screen, (255,0,0),False,loop_data)
+
+
     else:
         for event in pygame.event.get(): # allow quitting 
             if event.type == pygame.QUIT:
@@ -308,6 +362,8 @@ while True:
                     scale = scale*0.9
                 if event.key == pygame.K_e:
                     scale = scale*1.1
+                if event.key == pygame.K_9:
+                    running = "debug"
         keys = pygame.key.get_pressed() # move camera around by moving all particles 
         if keys[pygame.K_w]:
             for i in range(len(particles)):
@@ -324,7 +380,9 @@ while True:
         
         children = []
         ckpt = time.time_ns() 
+        data_store = [0,0,0]
         for c1,i in enumerate(particles): # for each particle
+            movement = time.time_ns()
             i.timestep(positions[c1][0],positions[c1][1]) # update position  
             positions[c1][2] = 0 
             positions[c1][3] = 0
@@ -332,11 +390,17 @@ while True:
             matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
             expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
             v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+            movement = time.time_ns()-movement
+            data_store[0] += movement
+            sharing_time = time.time_ns()
             close = [-1]
             sharing = share(v, i.hp, i.genes["shareRate"])
             if sharing[0] != -1:
                 particles[sharing[0]].hp += sharing[1] 
                 i.hp -= sharing[1] 
+            sharing_time = time.time_ns() - sharing_time
+            data_store[1] += sharing_time
+            breeding = time.time_ns()
             if i.genes["breedchance"]*scale >= 0.001 and np.random.randint(0,1/((i.genes["breedchance"]*scale*3)**2)) == 0 and i.hp >= 30:
                 if close[0] != -1:
                     parents = [a for a,x in enumerate(close) if x != 0 and x-1 == int(types[c1])]
@@ -355,12 +419,19 @@ while True:
                                 value += np.random.rand()/10 - 0.05 
                             newGenes[gene]=value
                         children.append([i.color,newGenes,i.code,positions[parent]])
-                        
+            breeding = time.time_ns()-breeding
+            data_store[2] += breeding            
             v = np.sum(v, axis=0)
             i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
             
             positions[c1][0] += v[0]*scale
             positions[c1][1] += v[1]*scale
+        ckpt = time.time_ns()-ckpt
+        data_major["Particle Loop"].append(ckpt)
+        data_loop["Get Movement"].append(data_store[0])
+        data_loop["Share Food"].append(data_store[1])
+        data_loop["Breed"].append(data_store[2])
+        ckpt = time.time_ns()
         offset = 0 
         for c1,i in enumerate(particles):
             if i.hp <= 0:
@@ -371,8 +442,10 @@ while True:
                 del particles[c1-offset] 
                 offset += 1
                 break
+        ckpt = time.time_ns() - ckpt 
+        data_major["Kill"].append(ckpt)
         spriteList.draw(screen) # display particles
-        
+        ckpt = time.time_ns()
         for i in children:
             particles.append(Color(i[0][0],i[0][1],i[0][2],matrices[i[2]]))
             particles[-1].set_genes(i[1])
@@ -382,6 +455,39 @@ while True:
             positions = np.append(positions,[pos], axis = 0)
             spriteList.add(particles[-1])
             types.append(i[2])
+        ckpt = time.time_ns() - ckpt 
+        data_major["Create Children"].append(ckpt)
+        fps_now = clock.get_fps()
+        fps.append(fps_now)
+        font = pygame.font.SysFont("Arial" , 18 , bold = True)
+        fps_text = font.render(str(int(fps_now)), 1, (255,255,255))
+        screen.blit(fps_text,(1700,150))
+        if running == "debug": #data processing - normalising between 0 and 300 and applying a convolution 
+            #major
+            total_data = []
+            for key in data_major:
+                total_data.append(data_major[key])
+            total_data = np.asarray(total_data)
+            total_data = total_data.flatten()
+            total_data = np.convolve(total_data,[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
+            for key in data_major: #normalise between 0 and 300 
+                data_major[key] = ((data_major[key] - np.min(total_data))/(np.max(total_data)-np.min(total_data)))*300
+                data_major[key] = np.convolve(data_major[key],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
+            #loop
+            total_data = []
+            for key in data_loop:
+                total_data.append(data_loop[key])
+            total_data = np.asarray(total_data)
+            total_data = total_data.flatten()
+            total_data = np.convolve(total_data,[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
+            for key in data_loop: #normalise between 0 and 300 
+                data_loop[key] = ((data_loop[key] - np.min(total_data))/(np.max(total_data)-np.min(total_data)))*300
+                data_loop[key] = np.convolve(data_loop[key],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
+            #fps 
+            fps = np.convolve(fps,[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
+            fps = ((fps - np.min(fps))/(np.max(fps)-np.min(fps)))*300
+            
+    clock.tick(60)
     pygame.display.flip()
 
 # Quit the game
