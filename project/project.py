@@ -243,16 +243,17 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
             other_dist = math.sqrt(dist/((2*interact_range**2)))*32
             dx = other_dist%1 
             sector = other_dist-dx 
+
             if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
                 #dy/dx = 3
                 dx = (dx + sector +1)/5
-                vel_mag = -(1/dx**2)
+                vel_mag = -(4/(dx)**2)-0.5
             elif sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
                 dx = dx + sector-5
                 grad = matrix[int(j[4])]/12
                 vel_mag = grad*dx 
             elif sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
-                dx = dx + sector-16
+                dx = dx + sector-17
                 grad = matrix[int(j[4])]
                 vel_mag = grad -(grad/10)*dx
             else: # too far - 0 velocity
@@ -293,6 +294,12 @@ def share(v, i_hp, i_genes_sr ):
             quantity = 1.5*scale
 
     return close2, quantity
+@jit(nopython=True)
+def fastsum(v):
+    ans = np.zeros(len(v[0]))
+    for i in v:
+        ans += i
+    return ans 
 
 ## vectorization params 
 colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
@@ -322,6 +329,71 @@ data_major = {"Particle Loop":[], "Kill":[],"Create Children":[]}
 data_loop = {"Get Movement":[], "Share Food":[], "Breed":[]}
 fps = [] 
 clock = pygame.time.Clock()
+
+# Testing 
+matrices_test = [{
+    "white":0,
+    "blue": 4000,
+    "red": -1, 
+    "green": -1,
+    "purple": -1,
+    "cyan": -1,
+    },{
+    "white":0,
+    "blue":0,
+    "red":-1,
+    "green":-1,
+    "purple":-1,
+    "cyan":-1,
+    }]
+particles_test = [Color(255, 255, 255, matrices_test[0]), Color(0, 0, 255, matrices_test[1])] 
+TestList = pygame.sprite.Group()
+TestList.add(particles_test[0])
+TestList.add(particles_test[1])
+positions_test = [[1920//2,1080//2, 0,0],[1920//2+15,1080//2+5.5,0,0]]
+types_test = [0,1]
+interact_range_test = interact_range
+offset = 15.9
+up = -1 
+dist_test = 16 
+test_mode = False
+while True:
+    if test_mode == False:
+        break
+    for event in pygame.event.get(): # allow quitting 
+        if event.type == pygame.QUIT:
+            pygame.quit()
+    screen.fill((0,0,0))        
+    particles_test[0].timestep(positions_test[0][0],positions_test[0][1])
+    particles_test[1].timestep(positions_test[1][0],positions_test[1][1])
+    expand_pos = np.column_stack(([positions_test[1]], [types_test[1]]))
+    matrixes = [particles_test[0].attraction_matrix[key] for key in particles_test[0].attraction_matrix] # negligible time 
+    ipos = [(y) for y in positions_test[0]]
+    v = np.asarray(mathStuff(ipos,expand_pos, int(interact_range_test), matrixes))
+    v = fastsum(v)
+    mag = math.sqrt(v[0]**2 + v[1]**2)
+    if mag > 0.1:
+        v[0] = v[0]*50/mag
+        v[1] = v[1]*50/mag
+    pygame.draw.line(screen, (255,0,0),(positions_test[0][0]+1,positions_test[0][1]+1),(positions_test[0][0]+v[0]+1,positions_test[0][1]+v[1]+1),2)
+    TestList.draw(screen)
+    pygame.display.flip()
+    offset -= 0.01
+    positions_test[1] = [1920//2,1080//2, 0,0]
+    positions_test[1][0] += offset 
+    positions_test[1][1] += math.sqrt(dist_test**2 - offset**2)*up
+    
+    if round(offset,3) == -dist_test+0.02 and up == -1 :
+        offset = dist_test-0.02
+        up = 1 
+    elif round(offset,3) == -dist_test+0.02 and dist_test == 16:
+        dist_test = 4
+        offset = dist_test-0.02
+        up = -1 
+    elif round(offset,3) == -dist_test+0.02:
+        break 
+    time.sleep(0.00001*abs(offset)**1.4)
+
 while True:
     screen.fill((0, 0, 0))
     if running == False:
@@ -408,14 +480,15 @@ while True:
             movement = time.time_ns()
             i.timestep(positions[c1][0],positions[c1][1]) # update position  - negligible time 
             
-            positions[c1][2] = 0 
+            positions[c1][2] = 0  
             positions[c1][3] = 0
             
             matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix] # negligible time 
             
             
             #expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)   
-            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes)) # low time
+            ipos = [(y) for y in positions[c1]]
+            v = np.asarray(mathStuff(ipos,expand_pos, int(interact_range), matrixes)) # low time
             movement = time.time_ns()-movement
             data_store[0] += movement
             sharing_time = time.time_ns()
@@ -445,15 +518,20 @@ while True:
                                 value += np.random.rand()/10 - 0.05 
                             newGenes[gene]=value
                         children.append([i.color,newGenes,i.code,positions[parent]])
-            breeding = time.time_ns()-breeding
-            data_store[2] += breeding            
-            v = np.sum(v, axis=0)
+            
+            
+            v = fastsum(v)
+
             i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
             
             positions[c1][0] += v[0]*scale
             positions[c1][1] += v[1]*scale
             expand_pos[c1][0] = positions[c1][0]
             expand_pos[c1][1] = positions[c1][1]
+            
+            breeding = time.time_ns()-breeding
+            data_store[2] += breeding     
+                   
         ckpt = time.time_ns()-ckpt
         data_major["Particle Loop"].append(ckpt)
         data_loop["Get Movement"].append(data_store[0])
@@ -514,7 +592,7 @@ while True:
             #fps 
             fps = np.convolve(fps,[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
             fps = ((fps - np.min(fps))/(np.max(fps)-np.min(fps)))*300
-    clock.tick(60)
+    clock.tick(144)
     pygame.display.flip()
 
 # Quit the game
