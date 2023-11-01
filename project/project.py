@@ -184,7 +184,7 @@ matrices = [{
 positions = [] 
 
 # add the particles to the sprite list and spawn them randomly 
-for i in range(40): 
+for i in range(100): 
     particles.append(Color(255, 255, 255, matrices[0]))
     positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
@@ -403,8 +403,9 @@ while True:
         children = []
         ckpt = time.time_ns() 
         data_store = [0,0,0]
+        expand_pos = np.column_stack((positions, types))
         for c1,i in enumerate(particles): # for each particle
-            
+            movement = time.time_ns()
             i.timestep(positions[c1][0],positions[c1][1]) # update position  - negligible time 
             
             positions[c1][2] = 0 
@@ -412,12 +413,10 @@ while True:
             
             matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix] # negligible time 
             
-            movement = time.time_ns()
-            #expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)   
-            expand_pos = np.column_stack((positions, types))
-            movement = time.time_ns()-movement
-            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes)) # low time
             
+            #expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)   
+            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes)) # low time
+            movement = time.time_ns()-movement
             data_store[0] += movement
             sharing_time = time.time_ns()
             close = [-1]
@@ -453,6 +452,8 @@ while True:
             
             positions[c1][0] += v[0]*scale
             positions[c1][1] += v[1]*scale
+            expand_pos[c1][0] = positions[c1][0]
+            expand_pos[c1][1] = positions[c1][1]
         ckpt = time.time_ns()-ckpt
         data_major["Particle Loop"].append(ckpt)
         data_loop["Get Movement"].append(data_store[0])
