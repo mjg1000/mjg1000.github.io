@@ -16,5 +16,5 @@ def compute_values():
             try:
                 data[i][j] = trig(i-101, j-101, 1)
             except:
-                data[i][j] = -1
+                data[i][j] = (0,0)
     return data 
