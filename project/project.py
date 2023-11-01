@@ -2,9 +2,11 @@ import pygame
 import numpy as np
 import math 
 from numba import jit, guvectorize, int32, float64
+from numba.typed import Dict 
 import threading
 import concurrent.futures
 import copy 
+import precalc_data
 # Initialize the game window
 # https://www.youtube.com/watch?v=p4YirERTVF0
 
@@ -16,6 +18,15 @@ interact_range = size/12
 window_size = (1920, 1080)
 screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
 import time 
+
+global hashmap 
+hashmap = np.full(200000, np.nan, dtype='f,f')
+precalced_data = precalc_data.compute_values()
+for i in range(len(precalced_data)):
+    for j in range(len(precalced_data[i])):
+        hash = int(0.5*(i+j)*(i+j+1)+j)
+        hashmap[hash] = (precalced_data[i][j][0],precalced_data[i][j][1])
+
 
 # calculate the sector that a particle is in (based on distance split into 32 sectors)
 @jit(nopython=True)
@@ -195,7 +206,7 @@ for i in range(40):
 positions = np.asarray(positions)
 @jit(nopython=True)
 def in_range(dist, interact_range):
-    if dist < math.sqrt(2*interact_range**2):
+    if dist < 2*interact_range**2: 
         return True
     else:
         return False 
@@ -203,7 +214,7 @@ def in_range(dist, interact_range):
 # calculate the sector that a particle is in (based on distance split into 32 sectors)
 @jit(nopython=True)
 def distance_calc(other_dist, interact_range):
-    other_dist = other_dist/(math.sqrt(2*interact_range**2)/32)
+    other_dist = math.sqrt(other_dist/((2*interact_range**2)))*32
     dx = other_dist%1 
     sector = other_dist-dx 
     return dx,sector
@@ -218,20 +229,24 @@ def trig(a,b, vel_mag):
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
 
+
 @guvectorize([(float64[:], float64[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
 def mathStuff(ipos, j, interact_range, matrix, vels2):
     vels2[2] = 0 
     vels2[3] = 0
     if (ipos[0] != j[0] and ipos[1] != j[1]):
         delta1 = (ipos[0]-j[0])
-        delta2 = (ipos[1]-j[1])
-        dist = (math.sqrt(delta1**2 + delta2**2))
-        if in_range(dist, interact_range): # if j is in range 
-            dx,sector = distance_calc(dist, interact_range) # get sector the particles are in
+        delta2 = (ipos[1]-j[1]) 
+        dist = delta1**2 + delta2**2 #dist squared for computation timee
+        if dist < 2*interact_range**2: # if j is in range 
+            #dx,sector = distance_calc(dist, interact_range) # get sector the particles are in
+            other_dist = math.sqrt(dist/((2*interact_range**2)))*32
+            dx = other_dist%1 
+            sector = other_dist-dx 
             if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
                 #dy/dx = 3
                 dx = (dx + sector +1)/5
-                vel_mag = -(1/dx)**2
+                vel_mag = -(1/dx**2)
             elif sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
                 dx = dx + sector-5
                 grad = matrix[int(j[4])]/12
@@ -242,13 +257,21 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
                 vel_mag = grad -(grad/10)*dx
             else: # too far - 0 velocity
                 vel_mag= 0 
-            vels = trig(delta2,delta1, vel_mag) # get what the velocity should be 
+            # vels = precalced_data[int(delta2)+101][int(delta1)+101]*vel_mag
+            m = int(delta2) +101 
+            n = int(delta1) + 101 
+            hash = 0.5*(m+n)*(m+n+1)+n
+            vels = hashmap[int(hash)]
+            vels = (vels[0]*vel_mag, vels[1]*vel_mag)
+            # print(vels)
+            # vels = trig(delta2,delta1, vel_mag) # get what the velocity should be 
+            # print(vels)   
             vels2[0] = vels[0]
             vels2[1] = vels[1]
         else:
             vels2[0] = 0.0
             vels2[1] = 0.0
-        if in_range(dist, interact_range/4):
+        if dist < 2*(interact_range/4)**2:
             vels2[2] = int(j[4])+1
     else:
         vels2[0] = 0.0
@@ -308,7 +331,6 @@ while True:
                 pygame.quit()
             elif event.type == pygame.MOUSEBUTTONUP:
                 position = pygame.mouse.get_pos() 
-                print(position)
             
         running = menu(position) 
     elif running == "debug":
@@ -382,15 +404,20 @@ while True:
         ckpt = time.time_ns() 
         data_store = [0,0,0]
         for c1,i in enumerate(particles): # for each particle
-            movement = time.time_ns()
-            i.timestep(positions[c1][0],positions[c1][1]) # update position  
+            
+            i.timestep(positions[c1][0],positions[c1][1]) # update position  - negligible time 
+            
             positions[c1][2] = 0 
             positions[c1][3] = 0
             
-            matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix]
-            expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)
-            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes))
+            matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix] # negligible time 
+            
+            movement = time.time_ns()
+            #expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)   
+            expand_pos = np.column_stack((positions, types))
             movement = time.time_ns()-movement
+            v = np.asarray(mathStuff([(y) for y in positions[c1]],expand_pos, int(interact_range), matrixes)) # low time
+            
             data_store[0] += movement
             sharing_time = time.time_ns()
             close = [-1]
@@ -486,7 +513,6 @@ while True:
             #fps 
             fps = np.convolve(fps,[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], 'same')
             fps = ((fps - np.min(fps))/(np.max(fps)-np.min(fps)))*300
-            
     clock.tick(60)
     pygame.display.flip()
 
