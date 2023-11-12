@@ -1,12 +1,17 @@
-import pygame
-import numpy as np
-import math 
-from numba import jit, guvectorize, int32, float64
-from numba.typed import Dict 
-import threading
-import concurrent.futures
-import copy 
-import precalc_data
+try:
+    import pygame
+    import numpy as np
+    import math 
+    from numba import jit, guvectorize, int32, float64, objmode
+    from numba.typed import Dict 
+    import threading
+    import concurrent.futures
+    import copy 
+    import precalc_data
+    import time 
+    print("imports tests passed")
+except:
+    print("Import tests failed - check that the required libraries are installed")
 # Initialize the game window
 # https://www.youtube.com/watch?v=p4YirERTVF0
 
@@ -17,7 +22,7 @@ size = 800 # spawn range
 interact_range = size/12
 window_size = (1920, 1080)
 screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
-import time 
+
 
 global hashmap 
 hashmap = np.full(200000, np.nan, dtype='f,f')
@@ -184,7 +189,8 @@ matrices = [{
 positions = [] 
 
 # add the particles to the sprite list and spawn them randomly 
-for i in range(100): 
+num_particles = 100 
+for i in range(num_particles): 
     particles.append(Color(255, 255, 255, matrices[0]))
     positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
@@ -204,6 +210,10 @@ for i in range(100):
     positions.append([np.random.uniform(0,size),np.random.uniform(0,size), 0, 0])
     spriteList.add(particles[-1])
 positions = np.asarray(positions)
+if len(particles) == num_particles*6 and len(spriteList) == num_particles*6 and len(positions) == num_particles*6:
+    print("Test 1-3 pass")
+else:
+    print("Test 1-3 fail")
 @jit(nopython=True)
 def in_range(dist, interact_range):
     if dist < 2*interact_range**2: 
@@ -228,24 +238,25 @@ def trig(a,b, vel_mag):
     self_vel0 = (-vel_mag/sqrt)*sign
     self_vel1 = self_vel0*angle
     return self_vel0,self_vel1
-
-
-@guvectorize([(float64[:], float64[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True)
+@guvectorize([(float64[:], float64[:],  int32, float64[:], float64[:])],'(m),(n),(),(p)->(n)', nopython=True, target="cpu")
 def mathStuff(ipos, j, interact_range, matrix, vels2):
     vels2[2] = 0 
     vels2[3] = 0
     if (ipos[0] != j[0] and ipos[1] != j[1]):
-        delta1 = (ipos[0]-j[0])
-        delta2 = (ipos[1]-j[1]) 
-        dist = delta1**2 + delta2**2 #dist squared for computation timee
+
+        delta1 = ipos[0]-j[0]
+        delta2 = ipos[1]-j[1]
+        dist = delta1**2 + delta2**2  #dist squared for computation time
+
         if dist < 2*interact_range**2: # if j is in range 
             #dx,sector = distance_calc(dist, interact_range) # get sector the particles are in
-            other_dist = math.sqrt(dist/((2*interact_range**2)))*32
+
+            other_dist = math.sqrt(dist)/(1.41*interact_range)*32
             dx = other_dist%1 
             sector = other_dist-dx 
 
             if sector <= 4: # if close by, calculate remainder of the sector and repel based on that + inverse square law 
-                #dy/dx = 3
+                #dy/dx = 3 
                 dx = (dx + sector +1)/5
                 vel_mag = -(4/(dx)**2)-0.5
             elif sector <= 16: #medium distance: scale from 0 attraction to attraction matrrix attraction
@@ -255,25 +266,24 @@ def mathStuff(ipos, j, interact_range, matrix, vels2):
             elif sector <= 26: # large distance: scale from attraction matrix attraction down to 0 
                 dx = dx + sector-17
                 grad = matrix[int(j[4])]
-                vel_mag = grad -(grad/10)*dx
+                vel_mag = grad*(1 -(dx/10))
             else: # too far - 0 velocity
                 vel_mag= 0 
-            # vels = precalced_data[int(delta2)+101][int(delta1)+101]*vel_mag
+
             m = int(delta2) +101 
             n = int(delta1) + 101 
             hash = 0.5*(m+n)*(m+n+1)+n
             vels = hashmap[int(hash)]
-            vels = (vels[0]*vel_mag, vels[1]*vel_mag)
-            # print(vels)
-            # vels = trig(delta2,delta1, vel_mag) # get what the velocity should be 
-            # print(vels)   
-            vels2[0] = vels[0]
-            vels2[1] = vels[1]
+            #vels = (vels[0]*vel_mag, vels[1]*vel_mag)   
+            vels2[0] = vels[0]*vel_mag
+            vels2[1] = vels[1]*vel_mag
+
+            if dist < (interact_range**2)/8:
+                vels2[2] = int(j[4])+1
         else:
             vels2[0] = 0.0
             vels2[1] = 0.0
-        if dist < 2*(interact_range/4)**2:
-            vels2[2] = int(j[4])+1
+        
     else:
         vels2[0] = 0.0
         vels2[1] = 0.0
@@ -300,7 +310,6 @@ def fastsum(v):
     for i in v:
         ans += i
     return ans 
-
 ## vectorization params 
 colourToNumber = {"white":0,"blue":1,"red":2,"green":3,"purple":4,"cyan":5}
 types = [colourToNumber[j.type] for j in particles]
@@ -321,8 +330,35 @@ def menu(position):
     if position[0] > play_button_pos[0] and position[0] < play_button_pos[0]+play_button_pos[2] and position[1] > play_button_pos[1] and position[1] < play_button_pos[1]+play_button_pos[3]:
         return True
     return False
-
-    
+if menu((710,350)) == True and menu((1050,350)) == True and menu((1050,400)) == True and menu((710,400)) == True:
+    print("test 4-8 pass")
+else: 
+    print("test 4-8 fail")
+if particles[0].hp == 100 and particles[0].radius == 2:
+    print("test 9-10 pass")
+else:
+    print("test 9-10 fail")
+sum_check = np.asarray([np.arange(10) for p in range(10)])
+if fastsum(sum_check).all() == np.asarray([0.0, 10.0, 20.0, 30.0,  40.0, 50.0, 60.0, 70.0, 80.0, 90.0,]).all():
+    print("test 11 pass")
+else:
+    print("test 11 fail")
+sum_check = np.asarray([np.asarray([-3,-2,-1,0]) for p in range(10)])
+if fastsum(sum_check).all() == np.asarray([-30.0, -20.0, -10.0, 0.0,]).all():
+    print("test 12 pass")
+else:
+    print("test 12 fail")
+sum_check = np.asarray([np.asarray([-1,0,1]) for p in range(10)])
+if fastsum(sum_check).all() == np.asarray([-10.0, 0.0, 10.0,]).all():
+    print("test 13 pass")
+else:
+    print("test 13 fail")
+sum_check = np.asarray([np.asarray([10]) for p in range(10)])
+if fastsum(sum_check).all() == np.asarray([100.0, ]).all():
+    print("test 14 pass")
+else:
+    print("test 14 fail")
+                       
 # Main game loop
 running = False
 data_major = {"Particle Loop":[], "Kill":[],"Create Children":[]}
@@ -367,7 +403,7 @@ while True:
     particles_test[0].timestep(positions_test[0][0],positions_test[0][1])
     particles_test[1].timestep(positions_test[1][0],positions_test[1][1])
     expand_pos = np.column_stack(([positions_test[1]], [types_test[1]]))
-    matrixes = [particles_test[0].attraction_matrix[key] for key in particles_test[0].attraction_matrix] # negligible time 
+    matrixes = [particles_test[0].attraction_matrix[key] for key in particles_test[0].attraction_matrix]
     ipos = [(y) for y in positions_test[0]]
     v = np.asarray(mathStuff(ipos,expand_pos, int(interact_range_test), matrixes))
     v = fastsum(v)
@@ -403,7 +439,6 @@ while True:
                 pygame.quit()
             elif event.type == pygame.MOUSEBUTTONUP:
                 position = pygame.mouse.get_pos() 
-            
         running = menu(position) 
     elif running == "debug":
         for event in pygame.event.get(): # allow quitting 
@@ -483,10 +518,7 @@ while True:
             positions[c1][2] = 0  
             positions[c1][3] = 0
             
-            matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix] # negligible time 
-            
-            
-            #expand_pos = np.concatenate((positions,np.asarray([types]).T), axis=1)   
+            matrixes = [i.attraction_matrix[key] for key in i.attraction_matrix] # negligible time             
             ipos = [(y) for y in positions[c1]]
             v = np.asarray(mathStuff(ipos,expand_pos, int(interact_range), matrixes)) # low time
             movement = time.time_ns()-movement
@@ -506,30 +538,30 @@ while True:
                 else: 
                     parents = [a for a,x in enumerate(v) if x[2] != 0 and x[2]-1 == int(types[c1])]
                 if len(parents) != 0:
-                    parent = np.random.choice(parents)
+                    choice_index = np.random.randint(0,len(parents))
+                    parent = parents[choice_index]
                     if particles[parent].hp >= 30:
                         i.hp -= 30
                         particles[parent].hp -= 30 
                         newGenes = {}
                         for gene in i.genes:
-                            prop = np.random.rand()
+                            prop = choice_index/len(parents)
                             value = (i.genes[gene]*prop+particles[parent].genes[gene]*(1-prop))
                             if gene != "breedchance":
                                 value += np.random.rand()/10 - 0.05 
                             newGenes[gene]=value
                         children.append([i.color,newGenes,i.code,positions[parent]])
             
-            
+           
             v = fastsum(v)
-
             i.hp -=scale*(math.sqrt(v[0]**2+v[1]**2)/10)
-            
+            breeding = time.time_ns()-breeding
             positions[c1][0] += v[0]*scale
             positions[c1][1] += v[1]*scale
             expand_pos[c1][0] = positions[c1][0]
             expand_pos[c1][1] = positions[c1][1]
             
-            breeding = time.time_ns()-breeding
+           
             data_store[2] += breeding     
                    
         ckpt = time.time_ns()-ckpt
