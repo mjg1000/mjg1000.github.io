@@ -330,6 +330,32 @@ def menu(position):
     if position[0] > play_button_pos[0] and position[0] < play_button_pos[0]+play_button_pos[2] and position[1] > play_button_pos[1] and position[1] < play_button_pos[1]+play_button_pos[3]:
         return True
     return False
+
+def controls(button, position, hovered, controlKeys):
+    hovering = hovered
+    print(hovering)
+    print(button)
+    font = pygame.font.Font('freesansbold.ttf', 50)
+    title = font.render("Controls",True, (255,255,255),(0,0,0))
+    rect = title.get_rect()
+    rect = (1920//3, 1080//6)
+    screen.blit(title, rect)
+    for i, key in enumerate(controlKeys):
+        font = pygame.font.Font('freesansbold.ttf', 30)
+        title = font.render(key+":  "+controlKeys[key],True, (175,30,10),(0,0,0))
+        rect = title.get_rect()
+        rect = (1920//3, 1080//6 + 100*(i+1))
+        screen.blit(title, rect)
+        if position[0] > rect[0] and position[0] < rect[0] + 400 and position[1] > rect[1]-100 and position[1] > rect[1] - 20:
+            hovering = key 
+    
+    if hovered in controlKeys and button != -1:
+        print("True")
+        controlKeys[hovered] = button
+    else:
+        pass
+
+    return "controls", hovering, controlKeys
 if menu((710,350)) == True and menu((1050,350)) == True and menu((1050,400)) == True and menu((710,400)) == True:
     print("test 4-8 pass")
 else: 
@@ -393,6 +419,7 @@ offset = 15.9
 up = -1 
 dist_test = 16 
 test_mode = False
+controlKeys = {"up":"w","down":"s","right":"d","left":"a","faster":"e","slower":"q","debug":"9"}
 while True:
     if test_mode == False:
         break
@@ -429,7 +456,8 @@ while True:
     elif round(offset,3) == -dist_test+0.02:
         break 
     time.sleep(0.00001*abs(offset)**1.4)
-
+running = "controls"
+hovered = -1 
 while True:
     screen.fill((0, 0, 0))
     if running == False:
@@ -440,12 +468,23 @@ while True:
             elif event.type == pygame.MOUSEBUTTONUP:
                 position = pygame.mouse.get_pos() 
         running = menu(position) 
+    elif running == "controls":
+        position = (-1,-1)
+        key = -1 
+        for event in pygame.event.get(): # allow quitting 
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                position = pygame.mouse.get_pos() 
+            elif event.type == pygame.KEYDOWN:
+                key = pygame.key.name(event.key)
+        running, hovered, controlKeys = controls(key, position, hovered, controlKeys)
     elif running == "debug":
         for event in pygame.event.get(): # allow quitting 
             if event.type == pygame.QUIT:
                 pygame.quit()
             elif event.type == pygame.KEYDOWN: # speed up or slow down time with q and e 
-                if event.key == pygame.K_9:
+                if event.key == pygame.key.key_code(controlKeys["debug"]):
                     running == True
         #major data
         loop_data = [] 
@@ -487,23 +526,23 @@ while True:
             if event.type == pygame.QUIT:
                 pygame.quit()
             elif event.type == pygame.KEYDOWN: # speed up or slow down time with q and e 
-                if event.key == pygame.K_q:
+                if event.key == pygame.key.key_code(controlKeys["slower"]):
                     scale = scale*0.9
-                if event.key == pygame.K_e:
+                if event.key == pygame.key.key_code(controlKeys["faster"]):
                     scale = scale*1.1
-                if event.key == pygame.K_9:
+                if event.key == pygame.key.key_code(controlKeys["debug"]):
                     running = "debug"
         keys = pygame.key.get_pressed() # move camera around by moving all particles 
-        if keys[pygame.K_w]:
+        if keys[pygame.key.key_code(controlKeys["up"])]:
             for i in range(len(particles)):
                 positions[i][1] += 10 
-        if keys[pygame.K_s]:
+        if keys[pygame.key.key_code(controlKeys["down"])]:
             for i in range(len(particles)):
                 positions[i][1] -= 10 
-        if keys[pygame.K_a]:
+        if keys[pygame.key.key_code(controlKeys["left"])]:
             for i in range(len(particles)):
                 positions[i][0] += 10 
-        if keys[pygame.K_d]:
+        if keys[pygame.key.key_code(controlKeys["right"])]:
             for i in range(len(particles)):
                 positions[i][0] -= 10 
         
