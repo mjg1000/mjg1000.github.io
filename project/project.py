@@ -319,6 +319,7 @@ def menu(position):
     rect = title.get_rect()
     rect = (1920//3, 1080//6)
     screen.blit(title, rect)
+
     play_button_pos = [700,1080//3 - 25, 425,100]
     pygame.draw.rect(screen, (81,210,112), play_button_pos,border_radius=25)
     font = pygame.font.Font('freesansbold.ttf', 40)
@@ -327,19 +328,36 @@ def menu(position):
     start_text_rect = (860, 1080//3)
     screen.blit(start_text, start_text_rect)
 
+    control_button_pos = [700,1080//2 - 25, 425,100]
+    pygame.draw.rect(screen, (81,210,112), control_button_pos,border_radius=25)
+    font = pygame.font.Font('freesansbold.ttf', 40)
+    control_text = font.render("controls",True, (240,116,35),(81,210,112))
+    control_rect = control_text.get_rect()
+    control_rect = (830, 1080//2)
+    screen.blit(control_text, control_rect)
+
     if position[0] > play_button_pos[0] and position[0] < play_button_pos[0]+play_button_pos[2] and position[1] > play_button_pos[1] and position[1] < play_button_pos[1]+play_button_pos[3]:
         return True
+    elif position[0] > control_button_pos[0] and position[0] < control_button_pos[0]+control_button_pos[2] and position[1] > control_button_pos[1] and position[1] < control_button_pos[1]+control_button_pos[3]:
+        return "controls"
     return False
 
 def controls(button, position, hovered, controlKeys):
     hovering = hovered
-    print(hovering)
-    print(button)
     font = pygame.font.Font('freesansbold.ttf', 50)
     title = font.render("Controls",True, (255,255,255),(0,0,0))
     rect = title.get_rect()
     rect = (1920//3, 1080//6)
     screen.blit(title, rect)
+
+    control_button_pos = [700,1080//1.1 - 25, 425,100]
+    pygame.draw.rect(screen, (81,210,112), control_button_pos,border_radius=25)
+    font = pygame.font.Font('freesansbold.ttf', 40)
+    control_text = font.render("Back",True, (240,116,35),(81,210,112))
+    control_rect = control_text.get_rect()
+    control_rect = (860, 1080//1.1)
+    screen.blit(control_text, control_rect)
+
     for i, key in enumerate(controlKeys):
         font = pygame.font.Font('freesansbold.ttf', 30)
         title = font.render(key+":  "+controlKeys[key],True, (175,30,10),(0,0,0))
@@ -350,12 +368,15 @@ def controls(button, position, hovered, controlKeys):
             hovering = key 
     
     if hovered in controlKeys and button != -1:
-        print("True")
         controlKeys[hovered] = button
     else:
         pass
-
-    return "controls", hovering, controlKeys
+    if position[0] > control_button_pos[0] and position[0] < control_button_pos[0]+control_button_pos[2] and position[1] > control_button_pos[1] and position[1] < control_button_pos[1]+control_button_pos[3]:
+        retVal = False
+    else:
+        retVal = "controls"
+    
+    return retVal, hovering, controlKeys
 if menu((710,350)) == True and menu((1050,350)) == True and menu((1050,400)) == True and menu((710,400)) == True:
     print("test 4-8 pass")
 else: 
@@ -456,7 +477,6 @@ while True:
     elif round(offset,3) == -dist_test+0.02:
         break 
     time.sleep(0.00001*abs(offset)**1.4)
-running = "controls"
 hovered = -1 
 while True:
     screen.fill((0, 0, 0))
