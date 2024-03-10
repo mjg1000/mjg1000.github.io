@@ -360,15 +360,19 @@ def controls(button, position, hovered, controlKeys):
 
     for i, key in enumerate(controlKeys):
         font = pygame.font.Font('freesansbold.ttf', 30)
-        title = font.render(key+":  "+controlKeys[key],True, (175,30,10),(0,0,0))
+        if key != hovered:
+            title = font.render(key+":  "+controlKeys[key],True, (175,30,10),(0,0,0))
+        else:
+            title = font.render(key+": Please input a key",True, (175,30,10),(0,0,0))
         rect = title.get_rect()
         rect = (1920//3, 1080//6 + 100*(i+1))
         screen.blit(title, rect)
         if position[0] > rect[0] and position[0] < rect[0] + 400 and position[1] > rect[1]-100 and position[1] > rect[1] - 20:
             hovering = key 
     
-    if hovered in controlKeys and button != -1:
+    if hovered in controlKeys and button != -1 and len(button) == 1:
         controlKeys[hovered] = button
+        hovering = -1
     else:
         pass
     if position[0] > control_button_pos[0] and position[0] < control_button_pos[0]+control_button_pos[2] and position[1] > control_button_pos[1] and position[1] < control_button_pos[1]+control_button_pos[3]:
